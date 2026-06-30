@@ -1,9 +1,10 @@
 # Planning and context. Never published to the public repo.
 _planning/
+docs/superpowers/
 
-# Generated on demand by the plugin (the optional compliance report).
-compliance-report.md
-compliance-report.html
+# Generated on demand by the plugin (the optional compliance report), at the repo root.
+/compliance-report.md
+/compliance-report.html
 
 # Office documents and their lock files (the writeup stays private).
 *.docx
