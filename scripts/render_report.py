@@ -82,6 +82,27 @@ GUARD_AGAINST = {
     "CTRL-4": "Weak encryption, or TLS certificate checking turned off",
 }
 
+# The actual standard clauses the controls map to, in plain terms (family level, matching
+# the control library's citation convention). Surfaced in the "What we check against" section.
+STANDARDS = [
+    ("PCI DSS — Requirement 3",
+     "Protect stored cardholder data (e.g. keep full card numbers out of logs)."),
+    ("PCI DSS — Requirement 4",
+     "Protect cardholder data with strong cryptography when it travels over open, public networks."),
+    ("PCI DSS — Requirement 8",
+     "Identify and authenticate access to systems; no shared or hardcoded credentials."),
+    ("PCI DSS — Requirement 10",
+     "Log and monitor all access to system components and cardholder data."),
+    ("SOC 2 — CC6.7 (Trust Services Criteria)",
+     "Protect data while it is being transmitted (encryption in transit)."),
+    ("SOC 2 — CC7.2 (Trust Services Criteria)",
+     "Monitor systems for anomalies and security events."),
+    ("GDPR — Article 5",
+     "Principles for processing personal data, including integrity and confidentiality."),
+    ("GDPR — Article 32",
+     "Security of processing: appropriate technical measures to protect personal data."),
+]
+
 
 # --- Confirmatory scan (CTRL-3 / CTRL-4) --------------------------------------
 # A point-in-time re-check of the reviewed files for the two deterministic controls
@@ -231,6 +252,7 @@ table.cov th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px
   text-transform:uppercase;letter-spacing:.03em;padding:0 10px 8px;border-bottom:1px solid var(--line);}
 table.cov td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 table.cov .id{font-weight:700;color:var(--navy);white-space:nowrap;}
+table.cov .std{color:var(--muted);font-size:12px;}
 .status{font-weight:600;white-space:nowrap;}
 .status.ok{color:var(--ok);} .status.warn{color:var(--review);} .status.bad{color:var(--red);}
 .file{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;color:var(--muted);
@@ -296,6 +318,7 @@ def _coverage_row(cid, review_counts, block_counts, files_scanned) -> str:
                   else f"<span class='status ok'>Clean &middot; {files_scanned} file{plural} scanned</span>")
     return (f"<tr><td class=id>{_esc(cid)}</td>"
             f"<td>{_esc(GUARD_AGAINST.get(cid, c['name']))}</td>"
+            f"<td class=std>{_esc(c['maps_to'])}</td>"
             f"<td>{_esc(HOW_CHECKED[kind])}</td>"
             f"<td>{status}</td></tr>")
 
@@ -365,7 +388,7 @@ def render_html(findings, clean, confirm_findings, files_scanned) -> str:
         "<h2>Controls checked<span class=hint>what this gate looks for, and how each is "
         "enforced</span></h2>",
         "<table class=cov><tr><th>Control</th><th>What it guards against</th>"
-        "<th>How it's checked</th><th>This run</th></tr>",
+        "<th>Standards</th><th>How it's checked</th><th>This run</th></tr>",
     ]
     for cid in ("CTRL-1", "CTRL-2", "CTRL-3", "CTRL-4"):
         p.append(_coverage_row(cid, review_counts, block_counts, files_scanned))
@@ -389,6 +412,15 @@ def render_html(findings, clean, confirm_findings, files_scanned) -> str:
     else:
         p.append("<p class=lead>None.</p>")
 
+    p.append("<h2>What we check against<span class=hint>the standards these controls map to</span></h2>")
+    p.append("<dl class=gloss>")
+    for clause, meaning in STANDARDS:
+        p.append(f"<dt>{_esc(clause)}</dt><dd>{_esc(meaning)}</dd>")
+    p.append("</dl>")
+    p.append("<p class=scope>Source frameworks: PCI DSS (card-data security), SOC 2 Trust Services "
+             "Criteria (service controls), and GDPR (EU personal-data protection). Citations are at the "
+             "standard-family level, matching the control library &mdash; not specific sub-requirements.</p>")
+
     p.append("<h2>How to read this report<span class=hint>plain-English definitions</span></h2>")
     p.append(
         "<dl class=gloss>"
@@ -400,9 +432,6 @@ def render_html(findings, clean, confirm_findings, files_scanned) -> str:
         "step. Surfaced by an AI review of your changes.</dd>"
         "<dt>Auto-blocked (red)</dt><dd>The gate stops these the moment you save, so they cannot enter "
         "scoped code. This report re-scans the saved files and flags any that got in another way.</dd>"
-        "<dt>PCI DSS &middot; SOC 2 &middot; GDPR</dt><dd>The data-protection standards these checks map "
-        "to: card-data security (PCI DSS), service security controls (SOC 2), and personal-data "
-        "protection (GDPR).</dd>"
         "</dl>"
     )
     p.append(f"<p class=foot>Flag for review, not an auditor's sign-off. "

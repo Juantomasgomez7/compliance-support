@@ -92,6 +92,16 @@ class RenderHtmlTests(unittest.TestCase):
         self.assertIn("How to read this report", h)
         self.assertIn("Data-Protection Compliance Review", h)
 
+    def test_coverage_table_shows_standards_mapping(self):
+        h = rr.render_html([], ["a.py"], [], 1)
+        self.assertIn("PCI Req 8", h)        # CTRL-3 maps_to, in the coverage row
+        self.assertIn("SOC 2 CC7.2", h)      # CTRL-2 maps_to, in the coverage row
+
+    def test_standards_reference_section_present(self):
+        h = rr.render_html([], ["a.py"], [], 1)
+        self.assertIn("What we check against", h)
+        self.assertIn("Security of processing", h)   # GDPR Art 32 plain meaning
+
     def test_self_contained_no_external_http(self):
         h = rr.render_html([], ["a.py"], [], 1)
         self.assertNotIn("http://", h)
