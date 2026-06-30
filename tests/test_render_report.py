@@ -48,5 +48,20 @@ class ConfirmatoryFindingsTests(unittest.TestCase):
             os.unlink(name)
 
 
+class LogoTests(unittest.TestCase):
+    def test_embeds_as_data_uri_when_present(self):
+        self.assertIn("data:image/png;base64,", rr.logo_tag())
+
+    def test_falls_back_to_wordmark_when_missing(self):
+        original = rr.LOGO_PATH
+        rr.LOGO_PATH = "no/such/logo.png"
+        try:
+            tag = rr.logo_tag()
+        finally:
+            rr.LOGO_PATH = original
+        self.assertIn("wordmark", tag)
+        self.assertIn(rr.ORG_NAME, tag)
+
+
 if __name__ == "__main__":
     unittest.main()

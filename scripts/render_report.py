@@ -230,6 +230,19 @@ def _esc(s) -> str:
     return html.escape(str(s if s is not None else ""))
 
 
+def logo_tag() -> str:
+    """Base64-embed the bundled logo so the HTML is a single portable file.
+
+    Falls back to a navy text wordmark if the asset is missing, so render never breaks.
+    """
+    try:
+        with open(LOGO_PATH, "rb") as fh:
+            data = base64.b64encode(fh.read()).decode("ascii")
+        return f"<img class=logo alt='{_esc(ORG_NAME)}' src='data:image/png;base64,{data}'>"
+    except OSError:
+        return f"<span class=wordmark>{_esc(ORG_NAME)}</span>"
+
+
 def render_html(findings, clean) -> str:
     counts = control_counts(findings)
     reviewed = len({f["file"] for f in findings} | set(clean))
