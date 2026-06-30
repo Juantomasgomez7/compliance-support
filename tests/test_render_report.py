@@ -63,5 +63,48 @@ class LogoTests(unittest.TestCase):
         self.assertIn(rr.ORG_NAME, tag)
 
 
+class RenderHtmlTests(unittest.TestCase):
+    def test_all_four_controls_in_coverage(self):
+        h = rr.render_html([], ["a.py"], [], 1)
+        for cid in ("CTRL-1", "CTRL-2", "CTRL-3", "CTRL-4"):
+            self.assertIn(cid, h)
+
+    def test_all_clear_banner_when_no_findings(self):
+        h = rr.render_html([], ["a.py"], [], 1)
+        self.assertIn("All clear", h)
+        self.assertIn("banner ok", h)
+
+    def test_warn_banner_for_agent_findings(self):
+        f = [{"file": "a.py", "control": "CTRL-1", "line": 3, "evidence": "x", "fix": "y"}]
+        h = rr.render_html(f, [], [], 1)
+        self.assertIn("banner warn", h)
+        self.assertIn("Needs review", h)
+
+    def test_bad_banner_and_block_card_for_confirmatory_finding(self):
+        c = [{"file": "a.py", "control": "CTRL-3", "line": 1, "evidence": "k='sk_live_x'",
+              "fix": "env"}]
+        h = rr.render_html([], [], c, 1)
+        self.assertIn("banner bad", h)
+        self.assertIn("Auto-blocked", h)
+
+    def test_glossary_and_title_present(self):
+        h = rr.render_html([], [], [], 0)
+        self.assertIn("How to read this report", h)
+        self.assertIn("Data-Protection Compliance Review", h)
+
+    def test_self_contained_no_external_http(self):
+        h = rr.render_html([], ["a.py"], [], 1)
+        self.assertNotIn("http://", h)
+        self.assertNotIn("https://", h)
+
+
+class MarkdownTests(unittest.TestCase):
+    def test_markdown_has_no_branding_or_html(self):
+        m = rr.render_markdown([], ["a.py"])
+        self.assertNotIn("Capital One", m)
+        self.assertNotIn("<", m)
+        self.assertIn("Reviewed and clean", m)
+
+
 if __name__ == "__main__":
     unittest.main()
