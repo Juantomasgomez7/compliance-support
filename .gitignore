@@ -5,6 +5,10 @@ _planning/
 compliance-report.md
 compliance-report.html
 
+# Office documents and their lock files (the writeup stays private).
+*.docx
+~$*
+
 # Local tooling state and machine-specific settings.
 .serena/
 .claude/settings.local.json
