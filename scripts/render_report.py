@@ -14,10 +14,23 @@ mapping, and the "why it matters" text, so the report reads the same every time.
 """
 from __future__ import annotations
 
+import base64
 import html
 import json
+import os
 import sys
 from datetime import date
+
+# Make scan.py importable regardless of the working directory (it sits beside this file).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scan import SECRET_PATTERNS, WEAK_CRYPTO_PATTERNS, TLS_OFF_PATTERNS  # noqa: E402
+
+# --- Branding (Capital One) ---------------------------------------------------
+BRAND_NAVY = "#004977"
+BRAND_RED = "#c8102e"
+ORG_NAME = "Capital One"
+LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets",
+                         "capital-one-logo.png")
 
 CONTROLS = {
     "CTRL-1": {
@@ -27,6 +40,7 @@ CONTROLS = {
                "cardholder-data environment. A full card number or personal data there spreads "
                "regulated data into places that were never assessed for it.",
         "kind": "review",
+        "fix": "Log a non-sensitive identifier (account or refund id) instead of the raw value.",
     },
     "CTRL-2": {
         "name": "Money-moving action without an audit-log entry",
@@ -34,6 +48,7 @@ CONTROLS = {
         "why": "Every action that moves money needs a who-did-what-when trail. Without one there is no "
                "way to detect, investigate, or attribute a mistaken or fraudulent action after the fact.",
         "kind": "review",
+        "fix": "Call audit_log.record(...) after the action succeeds, with non-sensitive metadata only.",
     },
     "CTRL-3": {
         "name": "Hardcoded secret or credential",
@@ -41,6 +56,7 @@ CONTROLS = {
         "why": "A secret in source is exposed to everyone with repository access and is hard to rotate. "
                "It belongs in the environment or a secrets manager.",
         "kind": "block",
+        "fix": "Read it from the environment, e.g. os.environ['PROCESSOR_API_KEY'].",
     },
     "CTRL-4": {
         "name": "Weak cryptography or disabled transport security",
@@ -48,9 +64,61 @@ CONTROLS = {
         "why": "Broken algorithms and disabled TLS verification leave data readable or alterable in "
                "transit or at rest.",
         "kind": "block",
+        "fix": "Use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on.",
     },
 }
-_UNKNOWN = {"name": "Unknown control", "maps_to": "", "why": "", "kind": "review"}
+_UNKNOWN = {"name": "Unknown control", "maps_to": "", "why": "", "kind": "review", "fix": ""}
+
+# Plain-language labels for a non-security reader (HTML report only).
+KIND_LABEL = {"review": "Needs review", "block": "Auto-blocked"}
+HOW_CHECKED = {
+    "review": "AI review of changed code",
+    "block": "Automatic gate (blocks the save) + confirmation scan",
+}
+GUARD_AGAINST = {
+    "CTRL-1": "Personal or card data ending up in logs or error messages",
+    "CTRL-2": "Money-moving actions that leave no audit trail",
+    "CTRL-3": "Passwords / API keys written directly into the source code",
+    "CTRL-4": "Weak encryption, or TLS certificate checking turned off",
+}
+
+
+# --- Confirmatory scan (CTRL-3 / CTRL-4) --------------------------------------
+# A point-in-time re-check of the reviewed files for the two deterministic controls
+# the pre-write hook enforces, reusing the hook's exact patterns (imported above).
+# The hook blocks these at write time; this confirms the files on disk are clean and
+# catches anything introduced outside Claude Code (bypassing the hook).
+def scan_content(content: str) -> list[dict]:
+    """Per-line CTRL-3 / CTRL-4 hits in one file's text.
+
+    Returns findings shaped like the agent's: {control, line, evidence, fix}. Per-line
+    matching mirrors the hook's whole-content patterns and yields a line number.
+    """
+    hits: list[dict] = []
+    for n, line in enumerate(content.splitlines(), start=1):
+        if any(p.search(line) for p in SECRET_PATTERNS):
+            hits.append({"control": "CTRL-3", "line": n,
+                         "evidence": line.strip(), "fix": CONTROLS["CTRL-3"]["fix"]})
+        if any(p.search(line) for p in (*WEAK_CRYPTO_PATTERNS, *TLS_OFF_PATTERNS)):
+            hits.append({"control": "CTRL-4", "line": n,
+                         "evidence": line.strip(), "fix": CONTROLS["CTRL-4"]["fix"]})
+    return hits
+
+
+def confirmatory_findings(files: list[str]) -> tuple[list[dict], int]:
+    """Scan each readable file for CTRL-3/CTRL-4. Returns (findings, files_scanned)."""
+    findings: list[dict] = []
+    scanned = 0
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                content = fh.read()
+        except OSError:
+            continue  # not readable from here -> skip, never crash the render
+        scanned += 1
+        for hit in scan_content(content):
+            findings.append({"file": path, **hit})
+    return findings, scanned
 
 
 def load_results() -> list:
