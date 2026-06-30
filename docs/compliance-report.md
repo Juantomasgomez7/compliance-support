@@ -2,8 +2,10 @@
 
 `/compliance-support:compliance-review --report` writes two files at the repo root:
 
-- `compliance-report.md` — a terse plain-text summary (good for diffs, CI logs, terminals).
+- `compliance-report.md` — the same report in plain text (good for diffs, CI logs, terminals).
 - `compliance-report.html` — a branded, self-contained report you can open in a browser or attach to an email.
+
+Both carry the same content; the HTML adds the logo, colours, and layout.
 
 Both come from **`scripts/render_report.py`**, built from the findings the `compliance-review`
 agent emits. The report is a *flag-for-review* artifact, not an audit sign-off.
@@ -24,9 +26,9 @@ It presents all four controls:
 | CTRL-4 Weak crypto / TLS off | pre-write hook, re-confirmed here | coverage row (finding if one is found) |
 
 CTRL-3/CTRL-4 are enforced live by the hook (`scripts/scan.py`), which blocks bad writes before
-they land. The HTML report re-scans the reviewed files for them using the **same patterns**, so it
-shows all four controls and catches anything introduced outside Claude Code. The Markdown report
-stays terse and lists only the agent's CTRL-1/CTRL-2 findings.
+they land. The report re-scans the reviewed files for them using the **same patterns**, so it shows
+all four controls and catches anything introduced outside Claude Code. Both the Markdown and HTML
+reports carry these confirmatory findings.
 
 ## How to customize it
 

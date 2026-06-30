@@ -34,8 +34,8 @@ FINDINGS
 
 The renderer writes `compliance-report.md` and a styled, browser-ready `compliance-report.html` at the
 repo root. It supplies the control names and the "why it matters" text, so do not hand-write the report.
-The HTML report additionally runs a deterministic CTRL-3/CTRL-4 confirmation over the reviewed files
-(the same patterns the hook enforces), so it presents all four controls; the agent itself still reports
+The renderer also runs a deterministic CTRL-3/CTRL-4 confirmation over the reviewed files (the same
+patterns the hook enforces), so both reports present all four controls; the agent itself still reports
 only CTRL-1/CTRL-2. Tell the user both files were written and that the HTML opens in a browser.
 
 If `--report` was not passed, write no file, and end with:

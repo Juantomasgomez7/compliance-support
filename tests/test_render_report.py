@@ -109,11 +109,23 @@ class RenderHtmlTests(unittest.TestCase):
 
 
 class MarkdownTests(unittest.TestCase):
-    def test_markdown_has_no_branding_or_html(self):
-        m = rr.render_markdown([], ["a.py"])
-        self.assertNotIn("Capital One", m)
-        self.assertNotIn("<", m)
+    def test_markdown_is_plain_text_with_all_sections(self):
+        m = rr.render_markdown([], ["a.py"], [], 1)
+        self.assertIn("All clear", m)
+        self.assertIn("## Controls checked", m)
+        self.assertIn("## What we check against", m)
         self.assertIn("Reviewed and clean", m)
+        self.assertNotIn("<div", m)
+        self.assertNotIn("<span", m)
+
+    def test_markdown_includes_confirmatory_findings_and_total(self):
+        agent = [{"file": "a.py", "control": "CTRL-1", "line": 3, "evidence": "x", "fix": "y"}]
+        confirm = [{"file": "a.py", "control": "CTRL-3", "line": 1, "evidence": "k='sk_live_x'",
+                    "fix": "env"}]
+        m = rr.render_markdown(agent, [], confirm, 1)
+        self.assertIn("CTRL-3", m)           # confirmatory finding now in the Markdown too
+        self.assertIn("2 issue", m)          # agent + confirmatory counted together
+        self.assertIn("PCI Req 8", m)        # standards mapping in the coverage table
 
 
 if __name__ == "__main__":

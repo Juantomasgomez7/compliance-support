@@ -176,38 +176,113 @@ def control_counts(findings: list) -> dict:
     return counts
 
 
+def _s(n: int) -> str:
+    """Pluralize a noun: '' for one, 's' otherwise."""
+    return "" if n == 1 else "s"
+
+
+def _verdict(reviewed: int, total: int, has_block: bool) -> tuple[str, str]:
+    """Overall verdict shared by both reports: (kind, plain message). kind in ok|warn|bad."""
+    if total == 0:
+        return "ok", f"All clear — {reviewed} file{_s(reviewed)} reviewed, no issues found."
+    if has_block:
+        return "bad", f"{total} issue{_s(total)} need attention, including an auto-blocked control."
+    return "warn", f"{total} issue{_s(total)} need your review."
+
+
+def _coverage_status(cid, review_counts, block_counts, files_scanned) -> tuple[str, str]:
+    """One control's 'this run' status, shared by both reports: (plain text, kind)."""
+    kind = CONTROLS.get(cid, _UNKNOWN)["kind"]
+    if kind == "review":
+        n = review_counts.get(cid, 0)
+        return (f"{n} to review", "warn") if n else ("No issues", "ok")
+    n = block_counts.get(cid, 0)
+    if n:
+        return f"{n} found", "bad"
+    return f"Clean · {files_scanned} file{_s(files_scanned)} scanned", "ok"
+
+
 # --- Markdown ----------------------------------------------------------------
-def render_markdown(findings, clean) -> str:
-    counts = control_counts(findings)
+def render_markdown(findings, clean, confirm_findings, files_scanned) -> str:
+    """Plain-text report. Same content as the HTML, minus the logo and colours."""
+    review_counts = control_counts(findings)
+    block_counts = control_counts(confirm_findings)
     reviewed = len({f["file"] for f in findings} | set(clean))
+    all_findings = findings + confirm_findings
+    total = len(all_findings)
+    today = date.today().isoformat()
+    _, verdict_msg = _verdict(reviewed, total, bool(confirm_findings))
+
     out = [
-        "# Compliance review report",
-        f"_Compliance Support, {date.today().isoformat()}, flag for review, not audit-grade_",
+        "# Data-Protection Compliance Review",
+        f"_Compliance Support · {today} · flag for review, not an audit sign-off_",
         "",
-        "## Summary",
-        f"- Files reviewed: {reviewed}  |  Findings: {len(findings)}  |  Clean: {len(clean)}",
-        "- By control: " + (", ".join(f"{c} x{n}" for c, n in sorted(counts.items())) or "none"),
+        f"Compliance Support is an automated data-protection gate for code in {ORG_NAME}'s PCI "
+        "cardholder-data environment. It checks changed code against four controls and flags anything "
+        "that needs an engineer's attention. This is a flag-for-review helper, not an auditor's sign-off.",
         "",
-        "## Findings",
+        f"This report covers the {reviewed} in-scope file{_s(reviewed)} reviewed on {today}.",
+        "",
+        f"**{verdict_msg}**",
+        "",
+        f"- Files reviewed: {reviewed}  |  Issues to address: {total}  |  Clean files: {len(clean)}",
+        "",
+        "## Controls checked",
+        "",
+        "| Control | What it guards against | Standards | How it's checked | This run |",
+        "| --- | --- | --- | --- | --- |",
     ]
-    if not findings:
-        out.append("None. Every reviewed file was clean.")
-    by_file: dict[str, list] = {}
-    for f in findings:
-        by_file.setdefault(f["file"], []).append(f)
-    for file, items in by_file.items():
-        out.append(f"### `{file}`")
-        for f in items:
-            c = CONTROLS.get(f["control"], _UNKNOWN)
-            line = f" line {f['line']}" if f.get("line") is not None else ""
-            out.append(f"- **{f['control']}: {c['name']}** ({c['maps_to']}){line}")
-            out.append(f"  - What: `{f['evidence']}`")
-            out.append(f"  - Why it matters: {c['why']}")
-            out.append(f"  - Fix: {f['fix']}")
-        out.append("")
-    out.append("## Reviewed and clean")
+    for cid in ("CTRL-1", "CTRL-2", "CTRL-3", "CTRL-4"):
+        c = CONTROLS[cid]
+        status_text, _kind = _coverage_status(cid, review_counts, block_counts, files_scanned)
+        out.append(f"| {cid} | {GUARD_AGAINST.get(cid, c['name'])} | {c['maps_to']} | "
+                   f"{HOW_CHECKED[c['kind']]} | {status_text} |")
+
+    out += ["", "## What we found", ""]
+    if not all_findings:
+        out.append("Nothing to address. Every reviewed file was clean.")
+    else:
+        by_file: dict[str, list] = {}
+        for f in all_findings:
+            by_file.setdefault(f["file"], []).append(f)
+        for file, items in by_file.items():
+            out.append(f"### `{file}`")
+            for f in items:
+                c = CONTROLS.get(f["control"], _UNKNOWN)
+                line = f" · line {f['line']}" if f.get("line") is not None else ""
+                fix = f.get("fix") or c["fix"]
+                out.append(f"- **{f['control']}: {c['name']}** ({KIND_LABEL[c['kind']]})")
+                out.append(f"  - Standards: {c['maps_to']}{line}")
+                out.append(f"  - What we saw: `{f['evidence']}`")
+                out.append(f"  - Why it matters: {c['why']}")
+                out.append(f"  - What to do: {fix}")
+            out.append("")
+
+    out += ["## Reviewed and clean", ""]
     out.append(", ".join(f"`{c}`" for c in clean) if clean else "None.")
-    out += ["", "---", "_Flag for review. Suggestions for an engineer to apply, not an auditor's sign-off._"]
+
+    out += ["", "## What we check against", ""]
+    for clause, meaning in STANDARDS:
+        out.append(f"- **{clause}** — {meaning}")
+    out += [
+        "",
+        "_Source frameworks: PCI DSS (card-data security), SOC 2 Trust Services Criteria (service "
+        "controls), and GDPR (EU personal-data protection). Citations are at the standard-family level, "
+        "matching the control library — not specific sub-requirements._",
+        "",
+        "## How to read this report",
+        "",
+        "- **PCI scope** — the parts of the codebase that handle card or customer data. Only these files "
+        "are checked.",
+        "- **Flag for review** — suggestions for an engineer to apply. The gate does not edit your code "
+        "and is not an auditor's sign-off.",
+        "- **Needs review** — a person should look: the code may expose data or skip an audit step.",
+        "- **Auto-blocked** — the gate stops these the moment you save; this report re-scans the saved "
+        "files and flags any that got in another way.",
+        "",
+        "---",
+        f"_Flag for review, not an auditor's sign-off. Generated by Compliance Support for {ORG_NAME}._",
+    ]
     return "\n".join(out) + "\n"
 
 
@@ -304,23 +379,14 @@ def logo_tag() -> str:
 
 
 def _coverage_row(cid, review_counts, block_counts, files_scanned) -> str:
-    """One row of the 'Controls checked' table: id, what it guards, how, this-run status."""
+    """One row of the 'Controls checked' table: id, what it guards, standards, how, status."""
     c = CONTROLS.get(cid, _UNKNOWN)
-    kind = c["kind"]
-    if kind == "review":
-        n = review_counts.get(cid, 0)
-        status = (f"<span class='status warn'>{n} to review</span>" if n
-                  else "<span class='status ok'>No issues</span>")
-    else:
-        n = block_counts.get(cid, 0)
-        plural = "s" if files_scanned != 1 else ""
-        status = (f"<span class='status bad'>{n} found</span>" if n
-                  else f"<span class='status ok'>Clean &middot; {files_scanned} file{plural} scanned</span>")
+    text, kind_cls = _coverage_status(cid, review_counts, block_counts, files_scanned)
     return (f"<tr><td class=id>{_esc(cid)}</td>"
             f"<td>{_esc(GUARD_AGAINST.get(cid, c['name']))}</td>"
             f"<td class=std>{_esc(c['maps_to'])}</td>"
-            f"<td>{_esc(HOW_CHECKED[kind])}</td>"
-            f"<td>{status}</td></tr>")
+            f"<td>{_esc(HOW_CHECKED[c['kind']])}</td>"
+            f"<td><span class='status {kind_cls}'>{_esc(text)}</span></td></tr>")
 
 
 def _finding_card(f) -> str:
@@ -349,17 +415,9 @@ def render_html(findings, clean, confirm_findings, files_scanned) -> str:
     total = len(all_findings)
     today = date.today().isoformat()
 
-    if total == 0:
-        banner = ("ok", "&#10003;",
-                  f"All clear &mdash; {reviewed} file{'s' if reviewed != 1 else ''} reviewed, "
-                  "no issues found.")
-    elif confirm_findings:
-        banner = ("bad", "&#9888;",
-                  f"{total} issue{'s' if total != 1 else ''} need attention, "
-                  "including an auto-blocked control.")
-    else:
-        banner = ("warn", "&#9888;",
-                  f"{total} issue{'s' if total != 1 else ''} need your review.")
+    kind, verdict_msg = _verdict(reviewed, total, bool(confirm_findings))
+    icon = "&#10003;" if kind == "ok" else "&#9888;"
+    banner = (kind, icon, verdict_msg)
 
     p = [
         "<!doctype html><html lang=en><head><meta charset=utf-8>",
@@ -445,7 +503,8 @@ def main() -> None:
     findings, clean = collect(results)
     inscope_files = [r["file"] for r in results if r.get("in_scope", True)]
     confirm, scanned = confirmatory_findings(inscope_files)
-    open("compliance-report.md", "w", encoding="utf-8").write(render_markdown(findings, clean))
+    open("compliance-report.md", "w", encoding="utf-8").write(
+        render_markdown(findings, clean, confirm, scanned))
     open("compliance-report.html", "w", encoding="utf-8").write(
         render_html(findings, clean, confirm, scanned))
     print("Wrote compliance-report.md and compliance-report.html")
