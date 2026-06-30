@@ -1,0 +1,17 @@
+# Single source of truth for the Compliance Support plugin.
+# Defines which paths are in PCI scope (the cardholder-data environment) and the
+# severity per check. Read by BOTH the hook (scripts/scan.sh) and the agent (compliance-review).
+
+scope:
+  # Glob patterns for in-scope (PCI / cardholder-data) paths.
+  include:
+    - "examples/refunds-service/src/**"
+  # Anything matching exclude is out of scope (e.g. dev tooling) and never flagged.
+  exclude:
+    - "**/scripts/**"
+
+checks:
+  pii_in_logs:        { severity: review }   # agent  - judgment
+  missing_audit_log:  { severity: review }   # agent  - judgment
+  hardcoded_secret:   { severity: block }    # hook   - deterministic
+  weak_crypto_or_tls: { severity: block }    # hook   - deterministic

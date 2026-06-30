@@ -1,0 +1,25 @@
+# Planning and context. Never published to the public repo.
+_planning/
+
+# Generated on demand by the plugin (the optional compliance report).
+compliance-report.md
+compliance-report.html
+
+# Local tooling state and machine-specific settings.
+.serena/
+.claude/settings.local.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# Python (the example service plus the scan and eval scripts)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/

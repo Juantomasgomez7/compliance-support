@@ -1,0 +1,4 @@
+# Normalize all text files to LF line endings.
+# On Windows, core.autocrlf=true would otherwise rewrite shell shebangs to CRLF,
+# which breaks the hook script (scan.sh) on the macOS and Linux machines that run it.
+* text=auto eol=lf

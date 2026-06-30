@@ -1,0 +1,20 @@
+# Labeled ground truth for the compliance-review AGENT eval.
+# The agent owns the two judgment checks only, CTRL-1 (PII/cardholder data in
+# logs) and CTRL-2 (money-moving action with no audit-log entry). CTRL-3/CTRL-4
+# are the hook's deterministic job, so the agent must NOT flag them here.
+# Known by construction: we planted this fixture.
+
+- file: examples/refunds-service/src/api/handlers/refund.py
+  expect: [CTRL-1, CTRL-2]          # the planted demo file
+- file: examples/refunds-service/src/api/handlers/balance.py
+  expect: []                        # read-only, logs only an account id -> clean
+- file: examples/refunds-service/src/api/auth/middleware.py
+  expect: []                        # access control done right -> clean
+- file: examples/refunds-service/src/db/queries.py
+  expect: []                        # parameterized queries -> clean
+- file: examples/refunds-service/src/config/settings.py
+  expect: []                        # secret from env var -> clean
+- file: examples/refunds-service/src/crypto/tokens.py
+  expect: []                        # md5 is CTRL-4 (hook's job), agent must stay silent
+- file: scripts/dev_seed.py
+  expect: []                        # out of PCI scope -> ignored
