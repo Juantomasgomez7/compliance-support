@@ -48,7 +48,7 @@ flowchart LR
 ```
 
 ```mermaid
-%%{init: {'themeVariables': {'edgeLabelBackground': 'transparent', 'lineColor': '#000000', 'textColor': '#000000'}}}%%
+%%{init: {'themeVariables': {'edgeLabelBackground': 'transparent'}}}%%
 flowchart TD
     classDef human fill:#e7f0ff,stroke:#4a6fa5,color:#000000
     classDef hook fill:#efe0ff,stroke:#7048e8,color:#000000
