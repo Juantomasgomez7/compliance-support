@@ -42,36 +42,94 @@ When Claude ends its turn, a Stop hook checks which in-scope files changed. If n
 
 Both gates share one scope, defined in `.compliance.yml`. To cover another service, AppSec adds its path there. Coverage is bounded to writes that go through Claude Code, since a hook only sees its own host's actions; code that arrives another way must rely on external guards.
 
-## Plugin Governance
-
-**AppSec owns every control definition; engineering owns only the plumbing.** What counts as a violation never lives in code: all four controls live in the AppSec-owned control-library at `skills/control-library/`, and the in-scope paths live once in `.compliance.yml`. Engineering owns only the mechanism: the hooks, the agent wiring, and the report renderer. When a standard changes, security edits the control-library directly, plain markdown for a judgment control or one JSON entry for a deterministic pattern, with no engineering ticket, code change, or redeploy, and both gates immediately run the current version. The repo also ships as a versioned single-plugin marketplace, so a rule change reaches every engineer as a release rather than a file copied around; the rollout mechanics are under [Install it across a team](#install-it-across-a-team).
-
-
-## What the plugin catches
+### What the plugin catches
 
 | Control          | What it catches                                     | Gate                     | Maps to                           |
 | ---------------- | --------------------------------------------------- | ------------------------ | --------------------------------- |
-| **CTRL-1** | PII or cardholder data in logs or errors            | Gate 2 (turn-end review) | PCI Req 3 & 10 · GDPR Art 5 & 32 |
-| **CTRL-2** | A money-moving action with no audit-log entry       | Gate 2 (turn-end review) | SOC 2 CC7.2 · PCI Req 10         |
 | **CTRL-3** | A hardcoded secret or credential                    | Gate 1 (blocks on write) | PCI Req 8                         |
 | **CTRL-4** | Weak crypto (MD5, DES, ECB) or TLS verification off | Gate 1 (blocks on write) | PCI Req 3 & 4 · SOC 2 CC6.7      |
+| **CTRL-1** | PII or cardholder data in logs or errors            | Gate 2 (turn-end review) | PCI Req 3 & 10 · GDPR Art 5 & 32 |
+| **CTRL-2** | A money-moving action with no audit-log entry       | Gate 2 (turn-end review) | SOC 2 CC7.2 · PCI Req 10         |
 
 Gate 2's two controls can also be run on demand with the `/compliance-support:compliance-review` command. Findings flag issues for an engineer to fix; they are not an audit sign-off.
 
+## Installation
 
-## Primitives this plugin uses
+All you need is Claude Code, Python 3, and bash (Git Bash on Windows).
+
+```bash
+git clone https://github.com/Juantomasgomez7/compliance-support.git
+cd compliance-support
+claude plugin validate . --strict   # expect: ✔ Validation passed
+claude --plugin-dir .
+```
+
+The plugin loads for that session. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gate finds no scope config and stays silent.
+
+To roll it out to a whole org instead, see [Governance and team rollout](#governance-and-team-rollout).
+
+## Try it in under 5 minutes
+
+Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up.
+
+Point the review at the example refund handler:
+
+```
+/compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
+```
+
+It returns the two judgment findings, with the control, the line, and the fix:
+
+```
+examples/refunds-service/src/api/handlers/refund.py
+
+  CTRL-1  PII or cardholder data in logs  ·  line 19
+    log.info("issuing refund %s for %s on card %s", refund_id, user.email, card.number)
+    Fix: log the refund_id alone; drop user.email and card.number.
+
+  CTRL-2  Money-moving action with no audit-log entry  ·  line 29
+    issue_refund(...) returns without an audit_log.record(...) call.
+    Fix: record the refund to the audit log after it succeeds.
+```
+
+It does not edit your code. Add `--report` to also write a shareable version, as Markdown and as a branded HTML file that opens in a browser.
+
+Three more things to try:
+
+- **Block on write.** Ask Claude to add `examples/refunds-service/src/api/handlers/payout.py` that calls the processor with a hardcoded `PROCESSOR_API_KEY = "sk_live_..."` and `verify=False`. The write is blocked, with the control and the fix.
+- **Scope precision.** Put the same key in `scripts/dev_seed.py` and the write goes through, because that path is outside PCI scope.
+- **The automatic gate.** Add a log line to `refund.py` and let Claude finish its turn. The Stop hook notices the in-scope change and reviews it, with no command typed.
+
+Reset the fixture with `bash scripts/demo_reset.sh`.
+
+## Governance and team rollout
+
+**AppSec owns every control definition; engineering owns only the plumbing.** What counts as a violation never lives in code: all four controls live in the AppSec-owned control-library at `skills/control-library/`, and the in-scope paths live once in `.compliance.yml`. Engineering owns only the mechanism: the hooks, the agent wiring, and the report renderer. When a standard changes, security edits the control-library directly, plain markdown for a judgment control or one JSON entry for a deterministic pattern, with no engineering ticket, code change, or redeploy, and both gates immediately run the current version.
+
+The repo is also a single-plugin marketplace, which is how an org rolls the plugin out and keeps it current:
+
+```
+/plugin marketplace add Juantomasgomez7/compliance-support
+/plugin install compliance-support@compliance-support
+```
+
+To ship a rule change, AppSec edits the control-library, bumps the `version` in the manifest, and pushes. Each engineer picks it up with `/plugin update`, or automatically at session start if the org enables auto-update for the marketplace. One central, versioned source, instead of the same rule pasted into a thousand local setups.
+
+## How it's built
+
+### Primitives this plugin uses
 
 | Part                                                           | Primitive         | What it does                                                                                                                                                                                  | Why this primitive                                                                                                                      |
 | -------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents/compliance-review.md`                                | Agent             | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
 | `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill             | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-1/2); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-3/4) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
 | `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse) | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
 | `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)       | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
+| `agents/compliance-review.md`                                | Agent             | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
 | `/compliance-support:compliance-review`                      | Command           | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
 
 Two files carry data, not behavior, so they get no row above: `.compliance.yml` (the scope) and `patterns.json` (the detection rules, data inside the control-library skill).
 
-## Architecture
+### Architecture
 
 **Key**
 
@@ -149,66 +207,6 @@ flowchart TD
 ```
 
 Why it is built this way (a deterministic gate for the always-wrong patterns, a judgment agent only where it is unavoidable, hooks over an MCP server, and fail-open wrappers) is written up in [design notes](docs/design-notes.md).
-
-## Requirements
-
-Claude Code, Python 3, and bash (Git Bash on Windows).
-
-## Installation
-
-```bash
-git clone https://github.com/Juantomasgomez7/compliance-support.git
-cd compliance-support
-claude plugin validate . --strict   # expect: ✔ Validation passed
-claude --plugin-dir .
-```
-
-The plugin loads for that session. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gate finds no scope config and stays silent.
-
-### Install it across a team
-
-The repo is also a single-plugin marketplace, which is how an org rolls it out and keeps it current:
-
-```
-/plugin marketplace add Juantomasgomez7/compliance-support
-/plugin install compliance-support@compliance-support
-```
-
-To ship a rule change, AppSec edits the control-library, bumps the `version` in the manifest, and pushes. Each engineer picks it up with `/plugin update`, or automatically at session start if the org enables auto-update for the marketplace.
-
-## Try it in under 5 minutes
-
-Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up.
-
-Point the review at the example refund handler:
-
-```
-/compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
-```
-
-It returns the two judgment findings, with the control, the line, and the fix:
-
-```
-examples/refunds-service/src/api/handlers/refund.py
-
-  CTRL-1  PII or cardholder data in logs  ·  line 19
-    log.info("issuing refund %s for %s on card %s", refund_id, user.email, card.number)
-    Fix: log the refund_id alone; drop user.email and card.number.
-
-  CTRL-2  Money-moving action with no audit-log entry  ·  line 29
-    issue_refund(...) returns without an audit_log.record(...) call.
-    Fix: record the refund to the audit log after it succeeds.
-```
-
-It does not edit your code. Add `--report` to also write a shareable version, as Markdown and as a branded HTML file that opens in a browser.
-
-Three more things to try:
-
-- **Block on write.** Ask Claude to add `examples/refunds-service/src/api/handlers/payout.py` that calls the processor with a hardcoded `PROCESSOR_API_KEY = "sk_live_..."` and `verify=False`. The write is blocked, with the control and the fix.
-- **Scope precision.** Put the same key in `scripts/dev_seed.py` and the write goes through, because that path is outside PCI scope.
-- **The automatic gate.** Add a log line to `refund.py` and let Claude finish its turn. The Stop hook notices the in-scope change and reviews it, with no command typed.
-
-Reset the fixture with `bash scripts/demo_reset.sh`.
 
 ## Testing and evaluation
 
