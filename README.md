@@ -46,10 +46,10 @@ Both gates share one scope, defined in `.compliance.yml`. To cover another servi
 
 | Control          | What it catches                                     | Gate                     | Maps to                           |
 | ---------------- | --------------------------------------------------- | ------------------------ | --------------------------------- |
-| **CTRL-3** | A hardcoded secret or credential                    | Gate 1 (blocks on write) | PCI Req 8                         |
-| **CTRL-4** | Weak crypto (MD5, DES, ECB) or TLS verification off | Gate 1 (blocks on write) | PCI Req 3 & 4 · SOC 2 CC6.7      |
-| **CTRL-1** | PII or cardholder data in logs or errors            | Gate 2 (turn-end review) | PCI Req 3 & 10 · GDPR Art 5 & 32 |
-| **CTRL-2** | A money-moving action with no audit-log entry       | Gate 2 (turn-end review) | SOC 2 CC7.2 · PCI Req 10         |
+| **CTRL-1** | A hardcoded secret or credential                    | Gate 1 (blocks on write) | PCI Req 8                         |
+| **CTRL-2** | Weak crypto (MD5, DES, ECB) or TLS verification off | Gate 1 (blocks on write) | PCI Req 3 & 4 · SOC 2 CC6.7      |
+| **CTRL-3** | PII or cardholder data in logs or errors            | Gate 2 (turn-end review) | PCI Req 3 & 10 · GDPR Art 5 & 32 |
+| **CTRL-4** | A money-moving action with no audit-log entry       | Gate 2 (turn-end review) | SOC 2 CC7.2 · PCI Req 10         |
 
 Gate 2's two controls can also be run on demand with the `/compliance-support:compliance-review` command. Findings flag issues for an engineer to fix; they are not an audit sign-off.
 
@@ -83,11 +83,11 @@ It returns the two judgment findings, with the control, the line, and the fix:
 ```
 examples/refunds-service/src/api/handlers/refund.py
 
-  CTRL-1  PII or cardholder data in logs  ·  line 19
+  CTRL-3  PII or cardholder data in logs  ·  line 19
     log.info("issuing refund %s for %s on card %s", refund_id, user.email, card.number)
     Fix: log the refund_id alone; drop user.email and card.number.
 
-  CTRL-2  Money-moving action with no audit-log entry  ·  line 29
+  CTRL-4  Money-moving action with no audit-log entry  ·  line 29
     issue_refund(...) returns without an audit_log.record(...) call.
     Fix: record the refund to the audit log after it succeeds.
 ```
@@ -121,7 +121,7 @@ To ship a rule change, AppSec edits the control-library, bumps the `version` in 
 
 | Part                                                           | Primitive         | What it does                                                                                                                                                                                  | Why this primitive                                                                                                                      |
 | -------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill             | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-1/2); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-3/4) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
+| `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill             | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-3/4); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-1/2) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
 | `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse) | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
 | `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)       | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
 | `agents/compliance-review.md`                                | Agent             | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |

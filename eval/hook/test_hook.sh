@@ -20,7 +20,7 @@ check() {  # $1=label  $2=BLOCK|ALLOW  $3=relpath  $4=content
 }
 
 S=examples/refunds-service/src
-echo "== Hook golden tests, CTRL-3 secrets, CTRL-4 weak crypto/TLS, and scope =="
+echo "== Hook golden tests, CTRL-1 secrets, CTRL-2 weak crypto/TLS, and scope =="
 check "in-scope provider secret"   BLOCK "$S/api/handlers/refund.py" 'API_KEY = "sk_live_EXAMPLE_not_a_real_key_000"'
 check "in-scope generic key literal" BLOCK "$S/api/handlers/refund.py" 'PROCESSOR_API_KEY = "9c1f8e2a7b4d6051c3e9f0a2b8d4e6f1"'
 check "in-scope verify=False"      BLOCK "$S/api/handlers/refund.py" 'requests.post(u, json=p, verify=False)'

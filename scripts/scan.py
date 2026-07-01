@@ -3,7 +3,7 @@
 
 Reads the hook payload from stdin. If the PENDING write lands in an in-scope
 (PCI) path defined by .compliance.yml AND the content contains a hardcoded
-secret (CTRL-3) or weak crypto / disabled TLS (CTRL-4), it blocks the write and
+secret (CTRL-1) or weak crypto / disabled TLS (CTRL-2), it blocks the write and
 explains the control + the fix. Otherwise it stays silent and the write proceeds.
 
 No model, no network: a fast, deterministic gate. Run via scan.sh so the hook
@@ -17,7 +17,7 @@ import re
 import sys
 
 # --- Control definitions (AppSec-owned) --------------------------------------
-# The deterministic CTRL-3/CTRL-4 patterns are NOT defined here. AppSec owns
+# The deterministic CTRL-1/CTRL-2 patterns are NOT defined here. AppSec owns
 # every control definition; they live beside the control library's SKILL.md.
 # Engineering owns only this loader. Resolved relative to __file__ so the
 # working directory never matters (the hook and render_report both import this).
@@ -51,7 +51,7 @@ def _meta(group: str) -> tuple:
             g.get("what", ""), g.get("fix", ""))
 
 
-# CTRL-3 secrets; CTRL-4 weak_crypto + tls_off. Compiled once at import;
+# CTRL-1 secrets; CTRL-2 weak_crypto + tls_off. Compiled once at import;
 # render_report.py imports these three names unchanged.
 SECRET_PATTERNS = _compiled("secret")
 WEAK_CRYPTO_PATTERNS = _compiled("weak_crypto")

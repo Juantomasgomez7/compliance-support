@@ -28,9 +28,9 @@ class PatternsSourcedFromControlLibrary(unittest.TestCase):
         self.assertEqual([p.pattern for p in scan.TLS_OFF_PATTERNS], self.data["tls_off"]["patterns"])
 
     def test_control_ids_match_the_library(self):
-        self.assertEqual(self.data["secret"]["control"], "CTRL-3")
-        self.assertEqual(self.data["weak_crypto"]["control"], "CTRL-4")
-        self.assertEqual(self.data["tls_off"]["control"], "CTRL-4")
+        self.assertEqual(self.data["secret"]["control"], "CTRL-1")
+        self.assertEqual(self.data["weak_crypto"]["control"], "CTRL-2")
+        self.assertEqual(self.data["tls_off"]["control"], "CTRL-2")
 
 
 if __name__ == "__main__":

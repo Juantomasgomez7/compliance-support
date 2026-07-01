@@ -14,7 +14,7 @@ scope:
     - "**/scripts/**"
 
 checks:
-  pii_in_logs:        { severity: review }   # agent  - judgment
-  missing_audit_log:  { severity: review }   # agent  - judgment
-  hardcoded_secret:   { severity: block }    # hook   - deterministic
-  weak_crypto_or_tls: { severity: block }    # hook   - deterministic
+  hardcoded_secret:   { severity: block }    # hook   - deterministic (CTRL-1)
+  weak_crypto_or_tls: { severity: block }    # hook   - deterministic (CTRL-2)
+  pii_in_logs:        { severity: review }   # agent  - judgment      (CTRL-3)
+  missing_audit_log:  { severity: review }   # agent  - judgment      (CTRL-4)

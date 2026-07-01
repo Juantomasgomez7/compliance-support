@@ -1,6 +1,6 @@
 {
   "secret": {
-    "control": "CTRL-3",
+    "control": "CTRL-1",
     "maps_to": "PCI Req 8",
     "what": "a hardcoded secret / credential",
     "fix": "read it from the environment, e.g. os.environ['PROCESSOR_API_KEY']",
@@ -10,7 +10,7 @@
     ]
   },
   "weak_crypto": {
-    "control": "CTRL-4",
+    "control": "CTRL-2",
     "maps_to": "PCI Req 3 & 4 / SOC 2 CC6.7",
     "what": "weak/broken cryptography (e.g. MD5/DES/ECB)",
     "fix": "use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on",
@@ -21,7 +21,7 @@
     ]
   },
   "tls_off": {
-    "control": "CTRL-4",
+    "control": "CTRL-2",
     "maps_to": "PCI Req 3 & 4 / SOC 2 CC6.7",
     "what": "disabled TLS verification (verify=False)",
     "fix": "use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on",

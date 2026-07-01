@@ -14,10 +14,10 @@ The control definitions, the approved fixes, and the before/after examples live 
 violation and how to fix it.
 
 ## What you check (and nothing else)
-1. **CTRL-1: PII or cardholder data in logs or errors.**
-2. **CTRL-2: a money-moving or state-changing action with no `audit_log.record(...)` call.**
+1. **CTRL-3: PII or cardholder data in logs or errors.**
+2. **CTRL-4: a money-moving or state-changing action with no `audit_log.record(...)` call.**
 
-You do **not** report hardcoded secrets (CTRL-3) or weak crypto / TLS-off (CTRL-4). The hook enforces
+You do **not** report hardcoded secrets (CTRL-1) or weak crypto / TLS-off (CTRL-2). The hook enforces
 those deterministically, so do not double-report them.
 
 ## Step 1: scope (do this first)
@@ -30,11 +30,11 @@ of the cardholder-data environment.
 Review the file or files you are asked to review. If none are named, use Glob to list the in-scope files
 from `.compliance.yml` and review those.
 
-- **CTRL-1:** inspect every logging call (`log.*`, `logger.*`, `print`) and every exception or error
+- **CTRL-3:** inspect every logging call (`log.*`, `logger.*`, `print`) and every exception or error
   message. Flag it **only** if it writes personal data (email, name, address, government id) or
   cardholder data (full PAN / card number, CVV, track data). **Do not** flag non-sensitive identifiers
   such as an internal account id, a refund id, or a tokenized reference.
-- **CTRL-2:** find handlers that **move money or change state** (issue or reverse a refund, adjust a
+- **CTRL-4:** find handlers that **move money or change state** (issue or reverse a refund, adjust a
   balance). Flag one **only** if it completes the action without calling `audit_log.record(...)`.
   **Do not** flag read-only actions (balance / GET); they need no audit entry. The helper lives at
   `src/audit/audit_log.py`; point to it as the fix.
@@ -54,7 +54,7 @@ Then output **exactly one** fenced ```json block (nothing after it) of this shap
   "in_scope": true,
   "findings": [
     {
-      "control": "CTRL-1",
+      "control": "CTRL-3",
       "maps_to": "PCI Req 3 & 10 · GDPR Art 5 & 32",
       "line": 19,
       "severity": "review",
@@ -66,7 +66,7 @@ Then output **exactly one** fenced ```json block (nothing after it) of this shap
 ```
 
 `findings` is `[]` for clean or out-of-scope files. Set `in_scope` to `false` when the path is excluded
-by `.compliance.yml`. Use only `CTRL-1` or `CTRL-2` in `control`.
+by `.compliance.yml`. Use only `CTRL-3` or `CTRL-4` in `control`.
 
 ## Framing
 Your findings are **flag-for-review**: surface the issue, cite the control, and propose the fix for the

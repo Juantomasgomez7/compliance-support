@@ -20,12 +20,12 @@ It presents all four controls:
 
 | Control | Checked by | In the report |
 |--|--|--|
-| CTRL-1 Personal/card data in logs | AI agent (judgment) | finding + coverage row |
-| CTRL-2 Money-moving action w/o audit log | AI agent (judgment) | finding + coverage row |
-| CTRL-3 Hardcoded secret | pre-write hook, re-confirmed here | coverage row (finding if one is found) |
-| CTRL-4 Weak crypto / TLS off | pre-write hook, re-confirmed here | coverage row (finding if one is found) |
+| CTRL-1 Hardcoded secret | pre-write hook, re-confirmed here | coverage row (finding if one is found) |
+| CTRL-2 Weak crypto / TLS off | pre-write hook, re-confirmed here | coverage row (finding if one is found) |
+| CTRL-3 Personal/card data in logs | AI agent (judgment) | finding + coverage row |
+| CTRL-4 Money-moving action w/o audit log | AI agent (judgment) | finding + coverage row |
 
-CTRL-3/CTRL-4 are enforced live by the hook (`scripts/scan.py`), which blocks bad writes before
+CTRL-1/CTRL-2 are enforced live by the hook (`scripts/scan.py`), which blocks bad writes before
 they land. The report re-scans the reviewed files for them using the **same patterns**, so it shows
 all four controls and catches anything introduced outside Claude Code. Both the Markdown and HTML
 reports carry these confirmatory findings.
@@ -50,7 +50,7 @@ To re-skin for a different organization: change `ORG_NAME`, drop a new logo in `
 at render time, so the HTML stays a single portable file; if the asset is missing, the header falls
 back to a text wordmark.
 
-The CTRL-3/CTRL-4 patterns are not defined here or in `scripts/scan.py`. They live as data in the
+The CTRL-1/CTRL-2 patterns are not defined here or in `scripts/scan.py`. They live as data in the
 AppSec-owned control library, in `skills/control-library/patterns.json`, beside the judgment-control
 rules in that skill's `SKILL.md`. `scripts/scan.py` loads that file at import time and compiles it into
 `SECRET_PATTERNS`, `WEAK_CRYPTO_PATTERNS`, and `TLS_OFF_PATTERNS`; the report imports those same names
