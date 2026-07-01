@@ -16,7 +16,7 @@ write.
 - Agent findings are flag-for-review: name the control, show the fix, and let the engineer apply it.
   They are not auto-applied and not audit-grade.
 - Scope is not defined here. Which paths are in PCI scope lives once in `.compliance.yml`, read by both
-  the hook and the agent.
+  hooks and the agent.
 
 ---
 

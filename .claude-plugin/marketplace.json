@@ -1,0 +1,17 @@
+{
+  "name": "compliance-support",
+  "description": "A single-plugin marketplace for Compliance Support, the data-protection gate for PCI-scoped code.",
+  "owner": {
+    "name": "Juan Tomas Gomez"
+  },
+  "plugins": [
+    {
+      "name": "compliance-support",
+      "source": "./",
+      "description": "Data-protection gate for PCI code: blocks hardcoded secrets and weak crypto as you write, and reviews changed code for PII in logs and missing audit logging when the turn ends.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": ["compliance", "pci-dss", "soc2", "gdpr", "security", "data-protection", "guardrails"]
+    }
+  ]
+}
