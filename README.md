@@ -66,8 +66,8 @@ flowchart TD
     SAVE -->|"turn ends"| H2{{"Stop hook"}}
     H2 -->|"nothing in scope"| SILENT["Silent, no model run"]
     H2 -->|"in-scope change"| AGENT["compliance-review agent"]
-    CMD[/"/compliance-review command"/] -->|"on demand"| AGENT
     SKILL[["control-library skill"]] -.->|"rulebook"| AGENT
+    CMD[/"/compliance-review command"/] -->|"on demand"| AGENT
     AGENT --> REVIEW{"issues<br/>found?"}
     REVIEW -->|"no"| CLEAN["All clear"]
     REVIEW -->|"yes"| OUT["Findings: control, line, fix"]
