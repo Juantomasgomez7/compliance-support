@@ -6,9 +6,12 @@ description: The data-protection control rules for a PCI-scoped codebase, coveri
 # Control library
 
 The single source of truth for what counts as a data-protection violation and what the approved fix is.
-The `compliance-review` agent preloads this to make its two judgment calls (CTRL-1, CTRL-2) and to cite
-controls. The hook (`scan.sh`) enforces the two deterministic controls (CTRL-3, CTRL-4) by blocking the
-write.
+This control library, owned by AppSec, defines all four controls across two files that sit side by side:
+this `SKILL.md` holds the two judgment controls (CTRL-1, CTRL-2), which the `compliance-review` agent
+preloads to make its calls and cite controls; `patterns.json` (beside this file) holds the detection
+regexes for the two deterministic controls (CTRL-3, CTRL-4), which the hook (`scan.sh`) reads to block
+the write. Engineering owns only the mechanism: the hook, the agent wiring, the report renderer, never a
+control definition.
 
 **How to use these rules**
 - Cite control IDs at the family level (for example "PCI Req 3 & 10"), not a specific sub-requirement.
@@ -58,7 +61,7 @@ return result
 
 ## CTRL-3: Hardcoded secrets or credentials
 - **Maps to:** PCI DSS Req 8
-- **Enforced by:** hook (deterministic, blocks the write)
+- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
 - **Violation:** a literal secret in source: an API key, token, or password assigned to a variable or
   passed inline. This includes provider-format keys (`sk_live_…`, `AKIA…`, `ghp_…`, `xox…`) and
   high-entropy string literals assigned to a `*_KEY`, `*_SECRET`, `*_TOKEN`, or `*_PASSWORD` name.
@@ -76,7 +79,7 @@ PROCESSOR_API_KEY = os.environ["PROCESSOR_API_KEY"]
 
 ## CTRL-4: Weak cryptography or disabled transport security
 - **Maps to:** PCI DSS Req 3 & 4 · SOC 2 CC6.7
-- **Enforced by:** hook (deterministic, blocks the write)
+- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
 - **Violation:** using a weak or broken algorithm to protect data (MD5 or SHA-1 for security, DES, RC4,
   or AES in ECB mode), or disabling TLS verification on an outbound call (`verify=False`,
   `ssl._create_unverified_context()`).

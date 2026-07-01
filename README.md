@@ -1,36 +1,79 @@
 # Compliance Support
 
-A PCI data-protection gate for Claude Code. It catches four data-protection mistakes (hardcoded secrets, weak crypto, personal or card data in logs, and money-moving code with no audit trail) at the keyboard, months before a pentest or a SOC 2 review would.
+Compliance-support is a Claude Code plugin built for CapitalOne backend engineers who write code that touches PCI data. It flags four types of data-protection compliance breaches in real-time: 1. hardcoded secrets; 2. weak crypto; 3. PII or cardholder data written to a log; or 4. money-moving actions leaving no audit trail.
 
-## Who it's for: Marcus
+## Who it's for
 
-Marcus is a senior backend engineer (L5) on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data and moves money. He ships three to five PRs a day. He knows the compliance rules exist without knowing their detail, and what he actually worries about is being the engineer who caused an audit finding. He already works in Claude Code, which is where this plugin meets him.
+This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He must permanantly try to stay up to date with changes the AppSec team enforces.
+
+Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to fully adopt is a fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
+
+This plugin is built for engineers like Marcus. If you don't touch code with cardholder data, this plugin is not for you: it stays silent on everything outside PCI scope.
 
 ## The problem
 
-Engineers like Marcus build the APIs that hold card data and move money, and every change has to satisfy PCI DSS, SOC 2, and GDPR: how the data is logged, encrypted, transmitted, and audited. Those rules live in long documents almost nobody reads. The security team that owns them is small and cannot review every pull request from thousands of engineers, so most code ships on trust.
+Every change to code that touches payment card surfaces has to satisfy PCI DSS, SOC 2, and GDPR regulations.
 
-So violations get written in good faith and found late, in a quarterly pentest or a SOC 2 evidence review, where they cost far more to fix than they would have at the keyboard, and where a single miss on a payments service turns into a real regulatory and reputational problem. Whole pods end up waiting on a compliance sign-off before they can merge to main, even at a bank that ships fast everywhere else.
+However, the enforcement of these regulations is owned by the application security team. At a bank the size of CapitalOne there is roughly one appsec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
 
-This plugin moves the check to the moment the code is written. It also lets the security team encode their controls once, in a skill they own, so the same rules apply on every engineer's machine without a person reviewing each pull request.
+Violations get caught late in a pentest or a SOC 2 evidence review where they cost hundreds of times more to fix than they would had they been caught on time. A single miss on a payments service, becomes a serious regulatory and reputational risk for the bank, and is considered a grave mistake for the AppSec team, as well as for the engineering team who shipped the code. No one benefits from the status quo.
 
-## How it works
+Like Marcus, there are many hundreds of engineers in CapitalOne who face the exact same problem. There are also thousands more working on adjacent systems who could benefit from the same plugin shaped to their divisions' compliance frameworks.
 
-Two gates over the same scope.
+## How the plugin solves this
 
-- Gate 1, as you write. A PreToolUse hook blocks hardcoded secrets and weak cryptography before the file is saved. It runs no model and costs nothing, and it only fires on patterns that are never acceptable.
-- Gate 2, when you finish. A Stop hook runs a review agent over the in-scope files you changed that turn, looking for the two things a pattern match cannot judge: personal or card data written to a log, and a money-moving action that returns with no audit entry. It advises, it does not block.
+By design, almost nothing changes for Marcus in his day-to-day. As long as he's leveraging Claude Code, the plugin will speak up if Marcus breaches a compliance standard. 
 
-## What's in the plugin
+**Compliance Standards:**
 
-| Component                                        | Primitive         | What it does                                                                         | Why this primitive                                                                                      |
-| ------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `agents/compliance-review.md`                  | Agent             | The two judgment calls: PII in logs, and a money move with no audit entry            | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate |
-| `skills/control-library/SKILL.md`              | Skill             | The control rulebook: the violation, the approved fix, and the standard each maps to | Editable knowledge with no code, so compliance can change a control without touching the agent          |
-| `scripts/scan.sh` → `scan.py`               | Hook (PreToolUse) | Blocks secrets and weak crypto on write                                              | The write has to stop deterministically, before any model, at no cost                                   |
-| `scripts/review_gate.sh` → `review_gate.py` | Hook (Stop)       | Fires the review when the turn ends                                                  | Zero friction, nothing for the engineer to remember to run                                              |
-| `/compliance-support:compliance-review`        | Command           | Runs the review on demand, with`--report` for a shareable report                   | A manual entry point for when you want one                                                              |
-| `.compliance.yml`                              | Config            | The in-scope PCI paths                                                               | One place for scope that both hooks and the agent read                                                  |
+The compliance standards are owned and maintained centrally by the AppSec team in the control-library the plugin ships. The folder `skills/control-library/` holds a rulebook (`SKILL.md`) for the judgment calls, and also includes a set of deterministic detection patterns (`patterns.json`). Both are plain files AppSec edits directly, not code, so changing a rule takes no engineering ticket and no one reviewing each pull request by hand.
+
+When Marcus writes code, the plugin runs a two-gate system, both gates reading from that one AppSec-owned library:
+
+**Gate 1 runs as the code is being written:**
+
+When Marcus sends a message and Claude goes to write a file, a PreToolUse hook fires. It checks the path against the scope in `.compliance.yml`, and if the file is in scope it scans the new content against the library's deterministic patterns: a hardcoded secret, weak crypto, TLS verification off.
+
+If it finds one, the write is blocked before it lands and Marcus sees the control and the fix. No model runs, so it costs nothing. He never had to know it was PCI Requirement 8; the hook did thanks to the control-library.
+
+**Gate 2 runs after the turn is finished:**
+
+When Claude ends its turn, a Stop hook checks which in-scope files changed. If none did, it stays silent. If any did, it runs the compliance-review agent over them. The agent reads the control-library's rulebook (`SKILL.md`) for the current rules, then makes the two judgment calls a pattern match cannot: PII or cardholder data written to a log, and a money-moving action that returns with no audit-log entry. It flags what it finds, names the control, and points at the line. It advises, it does not block.
+
+Both gates share one scope, defined in `.compliance.yml`. To cover another service, AppSec adds its path there. Coverage is bounded to writes that go through Claude Code, since a hook only sees its own host's actions; code that arrives another way must rely on external guards.
+
+## Plugin Governance
+
+**AppSec owns every control definition; engineering owns only the plumbing.** What counts as a violation never lives in code. AppSec owns the whole control-library at `skills/control-library/`: `SKILL.md`, the rulebook the Gate 2 agent reads for its two judgment controls (CTRL-1/2), and `patterns.json`, the deterministic patterns the Gate 1 hook loads for its two (CTRL-3/4), plus the in-scope paths in `.compliance.yml`. Engineering owns only the mechanism: the hooks, the agent wiring, and the report renderer. When a standard changes, security edits the control-library directly, plain markdown for a judgment control or one JSON entry for a deterministic pattern, with no engineering ticket, code change, or redeploy, and both gates immediately run the current version.
+
+The plugin also ships as a versioned marketplace entry, a `.claude-plugin/marketplace.json` with a `version` in its manifest, so it is versionable: distributed and updated as releases rather than copied around as loose files.
+
+This is what carries a rule change to every engineer without a redeploy: AppSec edits the control-library, bumps the version, and pushes to the plugin's repo, and each engineer's Claude Code pulls the new release on its next `/plugin update`, or automatically at the start of a session when the org enables auto-update for the marketplace. One central, versioned source, instead of the same rule pasted into a thousand local setups.
+
+
+## What the plugin catches
+
+| Control          | What it catches                                     | Gate                     | Maps to                           |
+| ---------------- | --------------------------------------------------- | ------------------------ | --------------------------------- |
+| **CTRL-1** | PII or cardholder data in logs or errors            | Gate 2 (turn-end review) | PCI Req 3 & 10 · GDPR Art 5 & 32 |
+| **CTRL-2** | A money-moving action with no audit-log entry       | Gate 2 (turn-end review) | SOC 2 CC7.2 · PCI Req 10         |
+| **CTRL-3** | A hardcoded secret or credential                    | Gate 1 (blocks on write) | PCI Req 8                         |
+| **CTRL-4** | Weak crypto (MD5, DES, ECB) or TLS verification off | Gate 1 (blocks on write) | PCI Req 3 & 4 · SOC 2 CC6.7      |
+
+Gate 2's two controls can also be run on demand with the `/compliance-support:compliance-review` command. Every control is defined in the AppSec-owned control library at `skills/control-library/`: `SKILL.md` carries each control's violation and approved fix for the agent to read (CTRL-1/2), and `patterns.json` carries the deterministic detection patterns the Gate 1 hook loads (CTRL-3/4). The security team edits both. Findings flag issues for an engineer to fix; they are not an audit sign-off.
+
+
+## Primitives this plugin uses
+
+| Part                                                           | Primitive         | What it does                                                                                                                                                                                  | Why this primitive                                                                                                                      |
+| -------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents/compliance-review.md`                                | Agent             | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
+| `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill             | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-1/2); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-3/4) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
+| `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse) | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
+| `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)       | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
+| `/compliance-support:compliance-review`                      | Command           | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
+
+Two files carry data, not behavior, so they get no row above: `.compliance.yml` (the in-scope paths) and `patterns.json` (the deterministic detection rules the Gate 1 hook loads). `patterns.json` lives inside the control-library skill, which is the primitive; the patterns are just its data.
 
 ## Architecture
 
@@ -38,7 +81,7 @@ Two gates over the same scope.
 
 ```mermaid
 flowchart LR
-    classDef human fill:#e7f0ff,stroke:#4a6fa5,color:#000000
+    classDef human fill:#fff3bf,stroke:#f08c00,color:#000000
     classDef hook fill:#efe0ff,stroke:#7048e8,color:#000000
     classDef agent fill:#c3fae8,stroke:#099268,color:#000000
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
@@ -50,44 +93,70 @@ flowchart LR
 ```mermaid
 %%{init: {'themeVariables': {'edgeLabelBackground': 'transparent'}}}%%
 flowchart TD
-    classDef human fill:#e7f0ff,stroke:#4a6fa5,color:#000000
+    classDef human fill:#fff3bf,stroke:#f08c00,color:#000000
     classDef hook fill:#efe0ff,stroke:#7048e8,color:#000000
     classDef agent fill:#c3fae8,stroke:#099268,color:#000000
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
     classDef command fill:#dbe9ff,stroke:#1971c2,color:#000000
     classDef state fill:#f1f3f5,stroke:#868e96,color:#000000
 
-    DEV([Developer edits code]) --> H1{{"PreToolUse hook"}}
-    H1 -->|"out of scope"| SAVE["Write proceeds"]
-    H1 -->|"in scope"| VIOL{"secret or<br/>weak crypto?"}
-    VIOL -->|"no"| SAVE
-    VIOL -->|"yes"| BLOCK["Block the write,<br/>show the fix"]
-    BLOCK -.->|"fix, re-save"| DEV
-    SAVE -->|"turn ends"| H2{{"Stop hook"}}
-    H2 -->|"nothing in scope"| SILENT["Silent, no model run"]
-    H2 -->|"in-scope change"| AGENT["compliance-review agent"]
-    SKILL[["control-library skill"]] -.->|"rulebook"| AGENT
-    CMD[/"/compliance-review<br/>command"/] -->|"on demand"| AGENT
-    AGENT --> REVIEW{"issues<br/>found?"}
-    REVIEW -->|"no"| CLEAN["All clear"]
-    REVIEW -->|"yes"| OUT["Findings:<br/>control, line, fix"]
-    OUT -.->|"--report"| REPORT["compliance-report.md<br/>/ .html"]
+    APPSEC(["AppSec team"]) -->|"owns & edits"| CL
+    subgraph CL["control-library folder"]
+        PATT["patterns.json<br/>deterministic patterns"]
+        SKILLMD["SKILL.md<br/>judgment rulebook"]
+    end
+    CL ~~~ DEV([Developer edits code])
 
-    class DEV human
+    subgraph G1["Gate 1 (write-time)"]
+        H1{{"PreToolUse hook"}}
+        VIOL{"secret or<br/>weak crypto?"}
+        SAVE["Write proceeds"]
+        BLOCK["Block the write,<br/>show the fix"]
+    end
+
+    subgraph G2["Gate 2 (turn-end)"]
+        H2{{"Stop hook"}}
+        SILENT["Silent, no model run"]
+        AGENT["compliance-review agent"]
+        REVIEW{"issues<br/>found?"}
+        CLEAN["All clear"]
+        OUT["Findings:<br/>control, line, fix"]
+        REPORT["compliance-report.md<br/>/ .html"]
+    end
+
+    DEV --> H1
+    PATT -.->|"loaded by"| H1
+    H1 -->|"out of scope"| SAVE
+    H1 -->|"in scope"| VIOL
+    VIOL -->|"no"| SAVE
+    VIOL -->|"yes"| BLOCK
+    SAVE -->|"turn ends"| H2
+    H2 -->|"nothing in scope"| SILENT
+    H2 -->|"in-scope change"| AGENT
+    RUN(["Runs command<br/>on demand"]) --> CMD[/"/compliance-review<br/>command"/]
+    CMD --> AGENT
+    SKILLMD -.->|"read by"| AGENT
+    AGENT --> REVIEW
+    REVIEW -->|"no"| CLEAN
+    REVIEW -->|"yes"| OUT
+    OUT -.->|"--report"| REPORT
+
+    class DEV,APPSEC,RUN human
     class H1,H2,VIOL hook
     class AGENT,REVIEW agent
-    class SKILL skill
+    class PATT,SKILLMD skill
     class CMD command
     class BLOCK,SAVE,SILENT,OUT,CLEAN,REPORT state
+    style CL fill:#f1f3f5,stroke:#868e96,color:#000000
+    style G1 fill:#faf5ff,stroke:#7048e8,stroke-dasharray:6 4,color:#000000
+    style G2 fill:#ebfbf5,stroke:#099268,stroke-dasharray:6 4,color:#000000
 ```
 
-The control-library skill is the rulebook the compliance-review agent reads before it reviews: the violation, the fix, and the standard each control maps to. It is a skill rather than rules hardcoded into the agent, so a compliance owner can change a control as plain text without touching code.
-
-Why it is built this way. The scan stays deterministic for the patterns that are always wrong, and a model runs only where judgment is unavoidable, which keeps the cost near zero and the false-positive rate low. I used hooks rather than an MCP server because the trigger is code being written, a local event, not an external system to call. The hooks are thin `.sh` wrappers so they behave the same on macOS and on Windows git-bash, and they fail open: if Python is not on the path, the gate allows the write rather than blocking someone's work over a broken scanner.
+Why it is built this way (a deterministic gate for the always-wrong patterns, a judgment agent only where it is unavoidable, hooks over an MCP server, and fail-open wrappers) is written up in [design notes](docs/design-notes.md).
 
 ## Requirements
 
-Claude Code, Python 3, and bash (Git Bash on Windows). The hooks run through small `.sh` wrappers.
+Claude Code, Python 3, and bash (Git Bash on Windows).
 
 ## Installation
 
@@ -100,46 +169,54 @@ claude --plugin-dir .
 
 The plugin loads for that session. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gate finds no scope config and stays silent.
 
+### Install it across a team
+
+The repo is also a single-plugin marketplace, which is how an org rolls it out and keeps it current:
+
+```
+/plugin marketplace add Juantomasgomez7/compliance-support
+/plugin install compliance-support@compliance-support
+```
+
+To ship a rule change, AppSec edits the control-library, bumps the `version` in the manifest, and pushes. Each engineer picks it up with `/plugin update`, or automatically at session start if the org enables auto-update for the marketplace.
+
 ## Try it in under 5 minutes
 
-Everything here runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up.
+Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up.
 
-Fast path, about two minutes. Run:
+Point the review at the example refund handler:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
 ```
 
-It flags the card number in a log line and the refund that returns with no audit entry, names the control and the line, and shows the fix. It does not edit your code. Add `--report` to also write a shareable report, as Markdown and as an HTML file that opens in a browser.
+It returns the two judgment findings, with the control, the line, and the fix:
 
-A few more things to try:
+```
+examples/refunds-service/src/api/handlers/refund.py
 
-- Block on write. Ask Claude to add `examples/refunds-service/src/api/handlers/payout.py` that calls the processor with a hardcoded `PROCESSOR_API_KEY = "sk_live_..."` and `verify=False`. The write is blocked, with the control and the fix.
-- Scope precision. Put the same key in `scripts/dev_seed.py` and the write goes through, because that path is out of PCI scope.
-- The automatic gate. Add a log line to `refund.py`, then let Claude finish its turn. The Stop hook notices the in-scope change and reviews it with no command typed.
+  CTRL-1  PII or cardholder data in logs  ·  line 19
+    log.info("issuing refund %s for %s on card %s", refund_id, user.email, card.number)
+    Fix: log the refund_id alone; drop user.email and card.number.
+
+  CTRL-2  Money-moving action with no audit-log entry  ·  line 29
+    issue_refund(...) returns without an audit_log.record(...) call.
+    Fix: record the refund to the audit log after it succeeds.
+```
+
+It does not edit your code. Add `--report` to also write a shareable version, as Markdown and as a branded HTML file that opens in a browser.
+
+Three more things to try:
+
+- **Block on write.** Ask Claude to add `examples/refunds-service/src/api/handlers/payout.py` that calls the processor with a hardcoded `PROCESSOR_API_KEY = "sk_live_..."` and `verify=False`. The write is blocked, with the control and the fix.
+- **Scope precision.** Put the same key in `scripts/dev_seed.py` and the write goes through, because that path is outside PCI scope.
+- **The automatic gate.** Add a log line to `refund.py` and let Claude finish its turn. The Stop hook notices the in-scope change and reviews it, with no command typed.
 
 Reset the fixture with `bash scripts/demo_reset.sh`.
 
-## Checks
-
-| Check                                               | When                    | Control                         |
-| --------------------------------------------------- | ----------------------- | ------------------------------- |
-| Hardcoded secret or credential                      | blocks on write         | PCI Req 8                       |
-| Weak crypto (MD5, DES, ECB) or TLS verification off | blocks on write         | PCI Req 3 & 4, SOC 2 CC6.7      |
-| Personal or cardholder data in logs or errors       | turn-end, or on request | PCI Req 3 & 10, GDPR Art 5 & 32 |
-| Money-moving action with no audit-log entry         | turn-end, or on request | SOC 2 CC7.2, PCI Req 10         |
-
-Reviews flag issues for an engineer to fix. They are not an audit sign-off. Every control, with its violation and fix, is defined in `skills/control-library/SKILL.md`.
-
-## Scope and coverage
-
-`.compliance.yml` lists the in-scope paths. To cover another service, add its path; both hooks and the agent read this one file.
-
-Coverage is bounded to writes that go through Claude Code, because a hook only sees its own host's actions. Code that arrives another way produces no hook event and relies on whatever already guards it.
-
 ## Testing and evaluation
 
-Two kinds of check, tested two ways. The deterministic hooks have golden block/allow tests, and the agent is measured for precision and recall against a labeled fixture.
+Two kinds of check, tested two ways: golden block/allow tests for the deterministic hooks, and a precision/recall eval for the agent against a labeled fixture.
 
 ```bash
 bash eval/hook/test_hook.sh              # golden tests for the write-time blocker
@@ -147,18 +224,12 @@ python -m unittest discover -s tests     # unit tests for the Stop gate and the 
 python eval/run_eval.py                  # agent precision and recall on eval/cases.yml
 ```
 
-See `eval/README.md` for how the two approaches split.
-
 ## Docs
 
-- [`docs/compliance-report.md`](docs/compliance-report.md): customizing and regenerating the branded report.
 - [`docs/build-your-own-plugin.md`](docs/build-your-own-plugin.md): the primitives used here, and how to build your own plugin for a different workflow.
-
-## Ownership and governance
-
-The split is the obvious one. Engineering owns the mechanics: the hooks, the agent, and the report. Application security and compliance own the substance: the control-library skill and the in-scope paths in `.compliance.yml`.
-
-That is why the rules live in a skill instead of in code. When a standard changes or a new control is needed, security edits `skills/control-library/SKILL.md` directly: add the control, change the approved fix, or adjust scope. It is plain markdown, so there is no engineering ticket, no code change, and no redeploy. The team that owns the controls is the team that edits them.
+- [`docs/design-notes.md`](docs/design-notes.md): the interesting build decisions, and where I had to steer Claude Code.
+- [`docs/compliance-report.md`](docs/compliance-report.md): customizing and regenerating the branded report.
+- [`eval/README.md`](eval/README.md): how the deterministic and judgment checks are evaluated.
 
 ## License
 

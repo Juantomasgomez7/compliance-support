@@ -2,8 +2,9 @@
 # Compliance Support, PreToolUse(Write|Edit) deterministic pre-write scan.
 #
 # Thin, portable wrapper. The real logic lives in scan.py so a single readable
-# file parses the JSON payload, the .compliance.yml scope, and the content
-# patterns, testable anywhere Python runs, with no extra binary (e.g. jq) to
+# file parses the JSON payload and the .compliance.yml scope, then applies the
+# control-library patterns (patterns.json), testable anywhere Python runs, with no
+# extra binary (e.g. jq) to
 # install. Keeping the hook entry a .sh keeps it firing identically on macOS and
 # Windows (git-bash), which is verified in _planning/HANDOFF.md section 4.
 #

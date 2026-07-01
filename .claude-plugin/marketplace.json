@@ -1,6 +1,6 @@
 {
   "name": "compliance-support",
-  "description": "A single-plugin marketplace for Compliance Support, the data-protection gate for PCI-scoped code.",
+  "description": "A single-plugin marketplace for Compliance Support, a data-protection gate for PCI cardholder-data code.",
   "owner": {
     "name": "Juan Tomas Gomez"
   },
@@ -8,7 +8,7 @@
     {
       "name": "compliance-support",
       "source": "./",
-      "description": "Data-protection gate for PCI code: blocks hardcoded secrets and weak crypto as you write, and reviews changed code for PII in logs and missing audit logging when the turn ends.",
+      "description": "A Claude Code plugin for engineers who write PCI cardholder-data code. It blocks hardcoded secrets and weak crypto as the code is written, and reviews changed code for PII in logs and money-moving actions with no audit trail when the turn ends.",
       "version": "0.1.0",
       "license": "MIT",
       "keywords": ["compliance", "pci-dss", "soc2", "gdpr", "security", "data-protection", "guardrails"]
