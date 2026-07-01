@@ -1,12 +1,12 @@
 # Compliance Support
 
-Compliance-support is a Claude Code plugin built for CapitalOne backend engineers who write code that touches PCI data. It flags four types of data-protection compliance breaches in real-time: 1. hardcoded secrets; 2. weak crypto; 3. PII or cardholder data written to a log; or 4. money-moving actions leaving no audit trail.
+Compliance Support is a Claude Code plugin built for Capital One backend engineers who write code that touches PCI data. It catches four types of data-protection compliance breaches, two blocked the moment they are written and two flagged for review when the turn ends: 1. hardcoded secrets; 2. weak crypto; 3. PII or cardholder data written to a log; and 4. money-moving actions leaving no audit trail.
 
 ## Who it's for
 
-This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He must permanantly try to stay up to date with changes the AppSec team enforces.
+This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He constantly has to stay up to date with the changes the AppSec team enforces.
 
-Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to fully adopt is a fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
+Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to fully adopting it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
 
 This plugin is built for engineers like Marcus. If you don't touch code with cardholder data, this plugin is not for you: it stays silent on everything outside PCI scope.
 
@@ -14,15 +14,15 @@ This plugin is built for engineers like Marcus. If you don't touch code with car
 
 Every change to code that touches payment card surfaces has to satisfy PCI DSS, SOC 2, and GDPR regulations.
 
-However, the enforcement of these regulations is owned by the application security team. At a bank the size of CapitalOne there is roughly one appsec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
+However, the enforcement of these regulations is owned by the application security team. At a bank the size of Capital One there is roughly one AppSec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
 
-Violations get caught late in a pentest or a SOC 2 evidence review where they cost hundreds of times more to fix than they would had they been caught on time. A single miss on a payments service, becomes a serious regulatory and reputational risk for the bank, and is considered a grave mistake for the AppSec team, as well as for the engineering team who shipped the code. No one benefits from the status quo.
+Violations get caught late in a pentest or a SOC 2 evidence review where they cost hundreds of times more to fix than they would had they been caught on time. A single miss on a payments service becomes a serious regulatory and reputational risk for the bank, and is considered a grave mistake for the AppSec team, as well as for the engineering team who shipped the code. No one benefits from the status quo.
 
-Like Marcus, there are many hundreds of engineers in CapitalOne who face the exact same problem. There are also thousands more working on adjacent systems who could benefit from the same plugin shaped to their divisions' compliance frameworks.
+Like Marcus, there are many hundreds of engineers at Capital One who face the exact same problem. There are also thousands more working on adjacent systems who could benefit from the same plugin shaped to their divisions' compliance frameworks.
 
 ## How the plugin solves this
 
-By design, almost nothing changes for Marcus in his day-to-day. As long as he's leveraging Claude Code, the plugin will speak up if Marcus breaches a compliance standard. 
+By design, almost nothing changes for Marcus in his day-to-day. As long as he's leveraging Claude Code, the plugin will speak up if Marcus breaches a compliance standard.
 
 **Compliance Standards:**
 
@@ -44,11 +44,7 @@ Both gates share one scope, defined in `.compliance.yml`. To cover another servi
 
 ## Plugin Governance
 
-**AppSec owns every control definition; engineering owns only the plumbing.** What counts as a violation never lives in code. AppSec owns the whole control-library at `skills/control-library/`: `SKILL.md`, the rulebook the Gate 2 agent reads for its two judgment controls (CTRL-1/2), and `patterns.json`, the deterministic patterns the Gate 1 hook loads for its two (CTRL-3/4), plus the in-scope paths in `.compliance.yml`. Engineering owns only the mechanism: the hooks, the agent wiring, and the report renderer. When a standard changes, security edits the control-library directly, plain markdown for a judgment control or one JSON entry for a deterministic pattern, with no engineering ticket, code change, or redeploy, and both gates immediately run the current version.
-
-The plugin also ships as a versioned marketplace entry, a `.claude-plugin/marketplace.json` with a `version` in its manifest, so it is versionable: distributed and updated as releases rather than copied around as loose files.
-
-This is what carries a rule change to every engineer without a redeploy: AppSec edits the control-library, bumps the version, and pushes to the plugin's repo, and each engineer's Claude Code pulls the new release on its next `/plugin update`, or automatically at the start of a session when the org enables auto-update for the marketplace. One central, versioned source, instead of the same rule pasted into a thousand local setups.
+**AppSec owns every control definition; engineering owns only the plumbing.** What counts as a violation never lives in code: all four controls live in the AppSec-owned control-library at `skills/control-library/`, and the in-scope paths live once in `.compliance.yml`. Engineering owns only the mechanism: the hooks, the agent wiring, and the report renderer. When a standard changes, security edits the control-library directly, plain markdown for a judgment control or one JSON entry for a deterministic pattern, with no engineering ticket, code change, or redeploy, and both gates immediately run the current version. The repo also ships as a versioned single-plugin marketplace, so a rule change reaches every engineer as a release rather than a file copied around; the rollout mechanics are under [Install it across a team](#install-it-across-a-team).
 
 
 ## What the plugin catches
@@ -60,7 +56,7 @@ This is what carries a rule change to every engineer without a redeploy: AppSec 
 | **CTRL-3** | A hardcoded secret or credential                    | Gate 1 (blocks on write) | PCI Req 8                         |
 | **CTRL-4** | Weak crypto (MD5, DES, ECB) or TLS verification off | Gate 1 (blocks on write) | PCI Req 3 & 4 · SOC 2 CC6.7      |
 
-Gate 2's two controls can also be run on demand with the `/compliance-support:compliance-review` command. Every control is defined in the AppSec-owned control library at `skills/control-library/`: `SKILL.md` carries each control's violation and approved fix for the agent to read (CTRL-1/2), and `patterns.json` carries the deterministic detection patterns the Gate 1 hook loads (CTRL-3/4). The security team edits both. Findings flag issues for an engineer to fix; they are not an audit sign-off.
+Gate 2's two controls can also be run on demand with the `/compliance-support:compliance-review` command. Findings flag issues for an engineer to fix; they are not an audit sign-off.
 
 
 ## Primitives this plugin uses
@@ -73,7 +69,7 @@ Gate 2's two controls can also be run on demand with the `/compliance-support:co
 | `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)       | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
 | `/compliance-support:compliance-review`                      | Command           | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
 
-Two files carry data, not behavior, so they get no row above: `.compliance.yml` (the in-scope paths) and `patterns.json` (the deterministic detection rules the Gate 1 hook loads). `patterns.json` lives inside the control-library skill, which is the primitive; the patterns are just its data.
+Two files carry data, not behavior, so they get no row above: `.compliance.yml` (the scope) and `patterns.json` (the detection rules, data inside the control-library skill).
 
 ## Architecture
 
