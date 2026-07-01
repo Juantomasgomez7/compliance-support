@@ -33,6 +33,7 @@ PCI scope and carries a dummy key, which the plugin correctly ignores.
 | Hardcoded secret | hook `scan.sh` (blocks) | `refund.py` `PROCESSOR_API_KEY` |
 | Weak crypto or TLS verify off | hook `scan.sh` (blocks) | `refund.py` `verify=False`; `tokens.py` `md5` |
 
-The two hook checks block automatically as code is written. The two agent checks run on request, through
-the `/compliance-support:compliance-review` command. See the repository root `README.md` for the full
+The two hook checks block automatically as code is written. The two agent checks run automatically when
+the turn ends (the `Stop` hook nudges a review of the changed in-scope files), or on request through the
+`/compliance-support:compliance-review` command. See the repository root `README.md` for the full
 demonstration.

@@ -1,6 +1,9 @@
-# Single source of truth for the Compliance Support plugin.
+# The AppSec-owned scope + severity map for the Compliance Support plugin.
 # Defines which paths are in PCI scope (the cardholder-data environment) and the
-# severity per check. Read by BOTH the hook (scripts/scan.sh) and the agent (compliance-review).
+# severity per check. The control definitions themselves live in the AppSec-owned
+# control-library (skills/control-library/): SKILL.md for the two judgment controls,
+# patterns.json for the two deterministic ones. Read by both hooks (scripts/scan.sh at
+# write time, scripts/review_gate.sh at turn-end) and the agent (compliance-review).
 
 scope:
   # Glob patterns for in-scope (PCI / cardholder-data) paths.

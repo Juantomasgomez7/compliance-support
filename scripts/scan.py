@@ -16,28 +16,50 @@ import os
 import re
 import sys
 
-# --- CTRL-3 - hardcoded secrets -----------------------------------------------
-SECRET_PATTERNS = [
-    # Provider-format keys (Stripe, AWS, GitHub, Slack, ...).
-    re.compile(r"\b(?:sk_live_|rk_live_|AKIA|ghp_|gho_|xox[baprs]-)[A-Za-z0-9_\-]{8,}"),
-    # A high-entropy literal assigned to a secret-ish name. The required opening
-    # quote right after '=' is what lets os.environ["KEY"] through cleanly.
-    re.compile(
-        r"(?i)\w*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL)S?\s*[:=]\s*"
-        r"[\"'][A-Za-z0-9/+_\-]{16,}[\"']"
-    ),
-]
+# --- Control definitions (AppSec-owned) --------------------------------------
+# The deterministic CTRL-3/CTRL-4 patterns are NOT defined here. AppSec owns
+# every control definition; they live beside the control library's SKILL.md.
+# Engineering owns only this loader. Resolved relative to __file__ so the
+# working directory never matters (the hook and render_report both import this).
+_PATTERNS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..", "skills", "control-library", "patterns.json",
+)
 
-# --- CTRL-4 - weak crypto / disabled TLS --------------------------------------
-WEAK_CRYPTO_PATTERNS = [
-    re.compile(r"(?i)\b(?:md5|sha1)\s*\("),        # weak hash used as a function
-    re.compile(r"(?i)hashlib\.(?:md5|sha1)\b"),
-    re.compile(r"(?i)\bMODE_ECB\b|\bDES\.new\b|\bRC4\b"),
-]
-TLS_OFF_PATTERNS = [
-    re.compile(r"(?i)verify\s*=\s*False"),
-    re.compile(r"(?i)ssl\._create_unverified_context"),
-]
+
+def load_patterns(path: str) -> dict:
+    """Read the AppSec-owned control patterns. Fail open (empty) if missing or
+    malformed; a scanner that cannot load must never block a write, matching
+    scan.sh's fail-open-when-Python-is-unavailable behavior."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {}
+
+
+_GROUPS = load_patterns(_PATTERNS_PATH)
+
+
+def _compiled(group: str) -> list:
+    return [re.compile(p) for p in _GROUPS.get(group, {}).get("patterns", [])]
+
+
+def _meta(group: str) -> tuple:
+    g = _GROUPS.get(group, {})
+    return (g.get("control", ""), g.get("maps_to", ""),
+            g.get("what", ""), g.get("fix", ""))
+
+
+# CTRL-3 secrets; CTRL-4 weak_crypto + tls_off. Compiled once at import;
+# render_report.py imports these three names unchanged.
+SECRET_PATTERNS = _compiled("secret")
+WEAK_CRYPTO_PATTERNS = _compiled("weak_crypto")
+TLS_OFF_PATTERNS = _compiled("tls_off")
+
+_SECRET_META = _meta("secret")
+_WEAK_META = _meta("weak_crypto")
+_TLS_META = _meta("tls_off")
 
 
 def relative_path(file_path: str, cwd: str) -> str:
@@ -116,24 +138,17 @@ def find_violations(content: str) -> list[tuple[str, str, str, str]]:
     """Return (control, maps_to, what, fix) for each deterministic violation."""
     hits = []
     if any(p.search(content) for p in SECRET_PATTERNS):
-        hits.append((
-            "CTRL-3", "PCI Req 8",
-            "a hardcoded secret / credential",
-            "read it from the environment, e.g. os.environ['PROCESSOR_API_KEY']",
-        ))
+        hits.append(_SECRET_META)
     weak = any(p.search(content) for p in WEAK_CRYPTO_PATTERNS)
     tls = any(p.search(content) for p in TLS_OFF_PATTERNS)
     if weak or tls:
         what = []
         if weak:
-            what.append("weak/broken cryptography (e.g. MD5/DES/ECB)")
+            what.append(_WEAK_META[2])
         if tls:
-            what.append("disabled TLS verification (verify=False)")
-        hits.append((
-            "CTRL-4", "PCI Req 3 & 4 / SOC 2 CC6.7",
-            " and ".join(what),
-            "use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on",
-        ))
+            what.append(_TLS_META[2])
+        control, maps_to, _, fix = _WEAK_META
+        hits.append((control, maps_to, " and ".join(what), fix))
     return hits
 
 

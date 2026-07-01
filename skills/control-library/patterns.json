@@ -1,0 +1,33 @@
+{
+  "secret": {
+    "control": "CTRL-3",
+    "maps_to": "PCI Req 8",
+    "what": "a hardcoded secret / credential",
+    "fix": "read it from the environment, e.g. os.environ['PROCESSOR_API_KEY']",
+    "patterns": [
+      "\\b(?:sk_live_|rk_live_|AKIA|ghp_|gho_|xox[baprs]-)[A-Za-z0-9_\\-]{8,}",
+      "(?i)\\w*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL)S?\\s*[:=]\\s*[\"'][A-Za-z0-9/+_\\-]{16,}[\"']"
+    ]
+  },
+  "weak_crypto": {
+    "control": "CTRL-4",
+    "maps_to": "PCI Req 3 & 4 / SOC 2 CC6.7",
+    "what": "weak/broken cryptography (e.g. MD5/DES/ECB)",
+    "fix": "use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on",
+    "patterns": [
+      "(?i)\\b(?:md5|sha1)\\s*\\(",
+      "(?i)hashlib\\.(?:md5|sha1)\\b",
+      "(?i)\\bMODE_ECB\\b|\\bDES\\.new\\b|\\bRC4\\b"
+    ]
+  },
+  "tls_off": {
+    "control": "CTRL-4",
+    "maps_to": "PCI Req 3 & 4 / SOC 2 CC6.7",
+    "what": "disabled TLS verification (verify=False)",
+    "fix": "use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on",
+    "patterns": [
+      "(?i)verify\\s*=\\s*False",
+      "(?i)ssl\\._create_unverified_context"
+    ]
+  }
+}

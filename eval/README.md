@@ -26,6 +26,16 @@ It spawns a few `claude -p` runs and takes a couple of minutes. It uses the exis
 needs no new credentials. The agent is a language model, so the numbers are measured per run rather than
 guaranteed, and the harness prints what it observed.
 
+## Stop-hook gate: unit tests
+
+The Tier-2 `Stop` hook (`scripts/review_gate.py`) is deterministic too: it decides whether to nudge a
+review of the PCI-scoped files a turn changed. Its scope filtering, the `stop_hook_active` loop guard,
+and the once-per-change-set sentinel are covered by `tests/test_review_gate.py`.
+
+```bash
+python -m unittest discover -s tests
+```
+
 `cases.yml` holds the labeled ground truth, known by construction because the fixture is planted. Evals
 for the probabilistic agent, golden tests for the deterministic hook: the right tool for each kind of
 check.

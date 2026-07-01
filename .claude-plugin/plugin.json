@@ -1,10 +1,11 @@
 {
   "name": "compliance-support",
   "version": "0.1.0",
-  "description": "Catches data-protection and compliance violations (PII in logs, missing audit logging, hardcoded secrets, weak crypto) the moment Claude Code writes regulated code, and explains the control and the fix.",
+  "description": "A Claude Code plugin for engineers who write PCI cardholder-data code. It blocks hardcoded secrets and weak crypto as the code is written, and reviews changed code for PII in logs and money-moving actions with no audit trail when the turn ends.",
   "author": {
     "name": "Juan Tomas Gomez"
   },
   "license": "MIT",
+  "repository": "https://github.com/Juantomasgomez7/compliance-support",
   "keywords": ["compliance", "pci-dss", "soc2", "gdpr", "security", "data-protection", "guardrails"]
 }

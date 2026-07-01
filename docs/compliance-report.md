@@ -50,9 +50,12 @@ To re-skin for a different organization: change `ORG_NAME`, drop a new logo in `
 at render time, so the HTML stays a single portable file; if the asset is missing, the header falls
 back to a text wordmark.
 
-The CTRL-3/CTRL-4 patterns are defined once in `scripts/scan.py` (`SECRET_PATTERNS`,
-`WEAK_CRYPTO_PATTERNS`, `TLS_OFF_PATTERNS`) and imported by both the hook and the report — change them
-in one place.
+The CTRL-3/CTRL-4 patterns are not defined here or in `scripts/scan.py`. They live as data in the
+AppSec-owned control library, in `skills/control-library/patterns.json`, beside the judgment-control
+rules in that skill's `SKILL.md`. `scripts/scan.py` loads that file at import time and compiles it into
+`SECRET_PATTERNS`, `WEAK_CRYPTO_PATTERNS`, and `TLS_OFF_PATTERNS`; the report imports those same names
+from `scan.py`. So the hook and the report share one definition owned by AppSec: change a pattern in the
+JSON and both gates move together.
 
 ## Regenerating
 

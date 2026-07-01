@@ -1,245 +1,220 @@
 # Build your own Claude Code plugin
 
-This guide is intended for engineering audiences with a basic understanding of Claude Code.
+This guide covers: what a Claude Code plugin is, when to build one (and when not), how to build it with Claude Code, and best practices.
 
-It covers what a plugin is, when and when not to build one, how to use Claude Code to build one from scratch, and best practices.
-
-## What a plugin is
-
-A plugin is a way to turn expertise into infrastructure. It takes know-how that lives in one person's head and packages it as an installable bundle, so any teammate who installs it gets the same behavior by default.
-
-Fundamentally, a plugin is a folder you point Claude Code at. Everything inside loads as a single unit, and the same folder installs the same way for every teammate.
-
-The manifest, `.claude-plugin/plugin.json`, is the one file a shareable plugin needs. Inside it, only `name` is required, and everything else sits at the top level of the folder.
-
-A plugin can hold ten kinds of primitives (the docs call them components). Five of them drive the most important behaviors that make a plugin worth building and installing:
-
-| Primitive  | What it is                                       | What it achieves                              |
-| ---------- | ------------------------------------------------ | --------------------------------------------- |
-| Command    | A slash command someone runs                     | A human-triggered entry point to the plugin   |
-| Agent      | A separate context with its own prompt and tools | Judgment and review that fixed rules can't do |
-| Skill      | Reference knowledge Claude can load              | Shared know-how, kept in a central source    |
-| Hook       | A script wired to an event                       | Automatic, deterministic enforcement          |
-| MCP server | A connection to an external system               | Live external data and actions                |
-
-The other five primitives: (output styles, themes, monitors, LSP servers, and a `bin/` of executables). Very useful but not used nearly as often.
+Target Audience:  For an engineer with basic Claude Code experience who wants to package a workflow as a plugin.
 
 ## When to use a plugin
 
-A plugin is a wrapper for two jobs: bundling pieces together and sharing them. Use one when you are trying
-to:
+A plugin does two jobs: it bundles primitives into one unit, and it shares them. Build one when you want to:
 
-- Bundle several primitives into one installable unit, like a command, the hook behind it, and the skill
-  they share.
-- Hand the same setup to other people or other repos in a single install.
-- Make a check or convention the team default, applied without each person having to remember it.
-- Package an external connection together with the prompts and skills that drive it.
+- Combine several primitives into one installable unit to get a result no single primitive delivers.
+- Make a behavior or convention the team default, applied without each person having to remember it.
+- Hand the same setup to other people or repos in a single install.
 
 ## When not to use a plugin
 
-For a single piece in a single place, skip the packaging and use the piece directly. Reach for something
-simpler when you only need to:
+When a single primitive is enough, use it directly and skip the plugin:
 
-- Add one command or hook to a single project. Put the file in `.claude/`; there is nothing to package.
-- Give only yourself a capability on one machine. A skill in `~/.claude/skills/` loads on its own, with no
-  marketplace.
-- Give Claude standing rules or context for one repo. Write a `CLAUDE.md`; a plugin does not even load its
-  own root `CLAUDE.md`, it ships instructions through a skill.
-- Add a single external connection. Add one MCP server to your settings, without a plugin.
+- A capability just for you on one machine: a skill in `~/.claude/skills/` loads on its own.
+- Standing rules or context for one repo: a `CLAUDE.md` (a plugin ships its own rules through a skill, not a root `CLAUDE.md`).
+- Data from one external system: a single MCP server in your settings.
 
-## Build it with Claude Code
+## What a plugin is
 
-You can write every file by hand, but the natural way is to let Claude Code scaffold the plugin and fill it
-in while you steer. Each step is the prompt you give, the file it writes, and why the result looks that way.
+A plugin turns expertise into infrastructure. It takes know-how that lives in one person's head, packages it as a folder you point Claude Code at, and gives every teammate who installs it access to the same behavior / workflow.
 
-One rule runs through all of it: match each piece of work to the primitive that fits it.
+A plugin is built from primitives. Claude Code defines seven kinds, and building a plugin is mostly a matter of matching each job to the primitive that fits it:
 
-- A deterministic rule, enforced the moment code is written, is a hook.
-- A check that has to read code and weigh it is an agent.
-- Knowledge the agent needs is a skill.
-- An entry point a person triggers is a command.
-- A reach into an outside system is an MCP server.
+| Primitive   | What it is                                                                                                                                                              | Use it when                                                                                                             |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Skills      | A packaged procedure exposed as a`/name` shortcut. You or Claude can invoke it by name, and Claude can also load it on its own when the task matches its description. | You want reusable know-how available either on demand or automatically by context.                                      |
+| Sub-Agents  | A subagent that runs in its own separate context window, with its own prompt and a scoped tool set, then hands a result back.                                           | The work should be isolated (heavy exploration, parallel tasks, focused review) so it does not crowd your main context. |
+| Hooks       | A script bound to a lifecycle event that fires automatically and deterministically, with no model judgment.                                                             | Something must run every single time: lint, format, scan for secrets, block a risky action.                             |
+| MCP servers | A live connection to an outside system, exposed to Claude as callable tools.                                                                                            | Claude needs real-time external data or must act on another system (database, internal API, GitHub).                    |
+| LSP servers | Wires in a language server for real-time code intelligence (diagnostics, go-to-definition).                                                                             | You need deep, language-aware editing. Usually you install a ready-made one rather than author it.                      |
+| Monitors    | A background watcher that streams live events to Claude (experimental).                                                                                                 | You want Claude to react to logs or status changes as they happen.                                                      |
+| Themes      | An editor color scheme (experimental).                                                                                                                                  | Visual preference only.                                                                                                 |
 
-Get the mapping right and the plugin mostly falls out of it. Get it wrong, by making a hook reason or an
-agent run a regex, and you pay in latency and flakiness.
+## Building a plugin from scratch with Claude Code
 
-### 1. Scaffold the folder
+You describe each piece and Claude Code writes it, so the real skill is knowing what to ask for. A thin prompt ("add a hook") makes Claude guess. A good one names the primitive and fills in the specifics it cannot guess, and there are usually more of those than you would expect.
 
-> Scaffold a Claude Code plugin named my-plugin: the `.claude-plugin/plugin.json` manifest, plus empty
-> commands, agents, skills, and hooks folders.
+So each step below comes in two parts:
 
-Claude Code writes the layout:
+- **A prompt template** with blanks. It is the shape of a strong request for that primitive, and the blanks are the details you have to supply. Fill them in for your own workflow.
+- **The same prompt, filled in** for one running example: a **Spend Tracker** that logs and reviews personal expenses. It is deliberately trivial, so the focus stays on how you prompt rather than on the workflow.
 
-```
-my-plugin/
-  .claude-plugin/
-    plugin.json
-  commands/
-  agents/
-  skills/
-  hooks/
-```
+Match each job to the primitive that fits it (the table above), then work down the list.
 
-Keep only the folders you will use.
+### Scaffold and the manifest
 
-### 2. The manifest
+Every plugin starts with a folder and one required file, the manifest.
 
-> Fill in plugin.json: name my-plugin, version 0.1.0, a one-line description, my name as author, MIT
-> license.
+Prompt template:
 
-```json
-{
-  "name": "my-plugin",
-  "version": "0.1.0",
-  "description": "What it does, in one line.",
-  "author": { "name": "Your Name" },
-  "license": "MIT"
-}
+```text
+Scaffold a Claude Code plugin.
+  Name:                   ______   (kebab-case)
+  Who it's for:           ______
+  What it does:           ______   (one line)
+  Primitives I will add:  ______   (e.g. skill, hook, agent, mcp)
+Create .claude-plugin/plugin.json and empty folders for those pieces.
 ```
 
-- `name` is the only required field. It has to be kebab-case, because Claude Code uses it to namespace
-  everything the plugin adds.
-- `version` is worth setting and bumping on each release, so installs update only when you intend. Leave it
-  out and Claude Code versions the plugin by its git commit.
+Filled in for Spend Tracker:
 
-### 3. A command
-
-> Add a command called report that summarizes the risky changes on this branch and writes them to a file a
-> reviewer can open.
-
-Claude Code writes `commands/report.md`:
-
-```markdown
----
-description: Summarize the risky changes on this branch and write a report.
----
-Run `git diff main...HEAD`, list the changes that deserve a closer look, and write them to
-`branch-report.md` so the result can be shared.
+```text
+Scaffold a Claude Code plugin.
+  Name:                   spend-tracker
+  Who it's for:           me, tracking my own expenses
+  What it does:           logs and reviews personal spending
+  Primitives I will add:  skill, hook, agent, mcp
+Create .claude-plugin/plugin.json and empty folders for those pieces.
 ```
 
-The body is the instruction Claude follows; the frontmatter describes it. Because the plugin is
-`my-plugin`, the command runs as `/my-plugin:report`, and namespacing keeps two plugins from colliding on
-one name. Writing a file like this, whether a short summary or an agent's findings rendered as Markdown or
-HTML, is often a plugin's most useful output: something a teammate or an auditor can read without running
-anything.
+### Skill: a procedure you reuse
 
-### 4. A hook
+A routine you repeat, on demand or by context, is a skill.
 
-> Add a PreToolUse hook on Write and Edit that runs a check script before any file write, and stub the
-> script.
+Prompt template:
 
-Claude Code writes `hooks/hooks.json` and a starter `scripts/check.sh`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/check.sh" }
-        ]
-      }
-    ]
-  }
-}
+```text
+Add a skill to my plugin.
+  Call it:       ______   (the /name you will run)
+  It should:     ______   (the procedure, step by step)
+  Inputs:        ______   (what it takes, and where it reads or writes)
+  Load it when:  ______   (the description that tells Claude the skill applies)
+Put it in skills/<name>/SKILL.md.
 ```
 
-- `${CLAUDE_PLUGIN_ROOT}` is the installed plugin's absolute path. Use it for every path, since the install
-  location is not where you wrote the code.
-- The script reads the pending tool call as JSON on stdin. To block the write, it prints a deny decision
-  and exits. This is what lets a plugin stop a bad write before it lands.
+Filled in for Spend Tracker:
 
-### 5. An agent and the skill it reads
-
-> Add an agent called pii-reviewer that flags personal data in logs, and a skill called control-library it
-> preloads for the rules.
-
-Claude Code writes `agents/pii-reviewer.md`:
-
-```markdown
----
-name: pii-reviewer
-description: Check changed code for personal data written to logs. Use after editing a handler.
-tools: Read, Grep, Glob
-skills: control-library
----
-You review code for one thing: personal data in logs. Flag a line only if it writes an email, a name,
-or a card number. Never flag an internal id. Be precise. A false positive gets you ignored.
+```text
+Add a skill to my plugin.
+  Call it:       log
+  It should:     append one expense as a row, then confirm the running total for the month.
+  Inputs:        an amount, a category, and a note, written to expenses.csv.
+  Load it when:  I say I want to log or record a spend.
+Put it in skills/log/SKILL.md.
 ```
 
-It also writes `skills/control-library/SKILL.md` for the rules.
+Result: `skills/log/SKILL.md`, run as `/spend-tracker:log`.
 
-- A skill's frontmatter `description` is what Claude reads to decide whether the skill applies, so make it
-  specific.
-- Keeping the rules in the skill means the agent, and anything else, reads one source instead of its own
-  copy.
+### Hook: a rule that runs every time
 
-### 6. Run it and validate
+Something that must run on every write and needs no judgment is a hook.
 
-Launch a session pointed at the folder:
+Prompt template:
+
+```text
+Add a hook to my plugin.
+  Fire on:             ______   (which events? e.g. Write, Edit)
+  Watch:               ______   (the path or glob it applies to)
+  Block when:          ______   (the exact condition to catch, be specific)
+  On block, show:      ______   (the message the user sees, including how to fix it)
+  Never block:         ______   (files or cases to leave alone)
+  Read settings from:  ______   (one config file, if a hook and agent share scope)
+Wire it in hooks/hooks.json, keep the logic in a script (not the model), and load any non-trivial rules from a data file the script reads rather than hardcoding them.
+```
+
+Filled in for Spend Tracker:
+
+```text
+Add a hook to my plugin.
+  Fire on:             Write, Edit
+  Watch:               expenses.csv
+  Block when:          a new row is missing its amount or its category.
+  On block, show:      which field is missing, and the correct row format.
+  Never block:         edits to the header row.
+  Read settings from:  not needed yet.
+Wire it in hooks/hooks.json.
+```
+
+Result: an entry in `hooks/hooks.json`, bound to the write event.
+
+### Agent: a review that needs judgment
+
+Work that means reading something and weighing it is an agent.
+
+Prompt template:
+
+```text
+Add an agent to my plugin.
+  Name it:                ______
+  It reviews:             ______   (what it reads, and where)
+  Flag:                   ______   (the judgment calls to catch, listed precisely)
+  Do NOT flag:            ______   (the cases to leave alone, so it stays precise)
+  For each finding, show: ______   (the item, why it is flagged, and the fix)
+  Rules come from:        ______   (the skill it reads, not rules pasted in the prompt)
+It advises only; it never edits my files. Tools it needs: ______ (e.g. Read, Grep).
+```
+
+Filled in for Spend Tracker:
+
+```text
+Add an agent to my plugin.
+  Name it:                reviewer
+  It reviews:             expenses.csv for the current month
+  Flag:                   charges far above my usual for a category, and likely miscategorized rows.
+  Do NOT flag:            normal recurring bills, or one-offs I have marked as expected.
+  For each finding, show: the row, why it stands out, and the category it likely belongs in.
+  Rules come from:        the log skill's row format and my category list.
+It advises only; it never edits expenses.csv. Tools it needs: Read, Grep.
+```
+
+Result: `agents/reviewer.md`.
+
+### MCP server: reach an outside system
+
+When the data or the action lives in another system, that is an MCP server.
+
+Prompt template:
+
+```text
+Add an MCP server to my plugin.
+  Connect to:       ______   (the external system)
+  Configure in:     .mcp.json (command or URL, plus any credentials read from the environment)
+  It lets Claude:   ______   (the live data to read, or the action to take)
+Use it only where a local script cannot get the data.
+```
+
+Filled in for Spend Tracker:
+
+```text
+Add an MCP server to my plugin.
+  Connect to:       my bank's API
+  Configure in:     .mcp.json, reading the access token from the environment.
+  It lets Claude:   import this month's card transactions, so I do not type them by hand.
+Use it only where a local script cannot get the data.
+```
+
+Result: an entry in `.mcp.json`.
+
+### Experimental extras: monitor and theme
+
+Two more primitives exist. Both are experimental and rarely the point of a plugin, so a one-line prompt is usually enough:
+
+- **Monitor**, a background watcher: "Add a monitor that watches the bank feed and tells me when a charge over $100 posts." Result: an entry in `monitors/monitors.json`.
+- **Theme**, an editor color scheme: "Add a theme called ledger with a soft green background and high-contrast text." Result: `themes/ledger.json`.
+
+### Validate and share
+
+```text
+Validate the plugin, then set up a marketplace so my team can install it.
+```
 
 ```bash
-claude --plugin-dir ./my-plugin
+claude --plugin-dir ./spend-tracker
+claude plugin validate ./spend-tracker --strict
 ```
 
-Trigger each piece and watch it work. Edit, restart, repeat. When it behaves, validate:
-
-```bash
-claude plugin validate ./my-plugin --strict
-```
-
-A clean plugin prints:
-
-```
-Validating plugin manifest: my-plugin/.claude-plugin/plugin.json
-
-✔ Validation passed
-```
-
-The check covers the manifest, the frontmatter on every command and agent, and the hooks file, and reports
-what is malformed. `--strict` turns a misspelled field name from a warning into a failure, which is what you
-want before publishing.
-
-### 7. Share it
-
-> Add a `.claude-plugin/marketplace.json` that lists my-plugin with source ./my-plugin.
-
-A marketplace is a repo that lists one or more plugins for others to install:
-
-```json
-{
-  "name": "my-team",
-  "owner": { "name": "My Team" },
-  "plugins": [
-    { "name": "my-plugin", "source": "./my-plugin" }
-  ]
-}
-```
-
-Push it to GitHub. Your teammate runs two commands:
-
-```bash
-/plugin marketplace add my-org/my-repo
-/plugin install my-plugin@my-team
-```
-
-A `source` can also point at another GitHub repo, a git URL, a subdirectory, or an npm package, so one
-marketplace can serve plugins that live in different places.
+A clean plugin prints `✔ Validation passed`. Sharing works through a `.claude-plugin/marketplace.json` pushed to GitHub; a teammate then installs it with `/plugin install spend-tracker@your-team`. Bump the `version` in the manifest to release an update; teammates pull it with `/plugin update`, or automatically at session start if they enable auto-update for the marketplace.
 
 ## Best practices
 
-- Keep the first version small. One check that earns its keep beats five that half-work, and you can add
-  the second once the first is in people's hands.
-- Match the primitive to the job. The split between a deterministic rule and a judgment call is the whole
-  design; the moment a hook starts reasoning or an agent runs a regex, move the work where it belongs.
-- Make an agent precise before thorough. A reviewer that cries wolf gets turned off and then protects
-  nothing, so tell it what not to flag and measure it against known-clean code before you trust it.
-- Keep configuration in one place. When a hook and an agent both need the in-scope paths, put them in one
-  file both read, not two that drift apart.
-- Use `${CLAUDE_PLUGIN_ROOT}` for every path. A hardcoded path works on your machine and breaks on everyone
-  else's. Keep state that must survive an update in `${CLAUDE_PLUGIN_DATA}`.
-- Test the way the plugin runs. Feed the hook crafted inputs and assert block or allow, then give the agent
-  labeled files and check its hits and misses.
-- Add a primitive only when it pays for itself. A second agent or an MCP server you do not need is surface
-  to maintain and context to carry. The plugins that hold up are the ones that left things out.
+- Keep the first version small. One check that earns its keep beats five that half-work; add the next once the first is in people's hands.
+- Make an agent precise before thorough. A reviewer that cries wolf gets turned off, so tell it what not to flag and measure it against clean code before you trust it.
+- Keep configuration in one place. When a hook and an agent need the same scope, put it in one file both read, not two that drift apart.
+- Keep the rules as owned data, separate from the mechanism. A deterministic hook can load its patterns from a data file it reads at startup, exactly as a judgment agent reads its rules from a skill instead of its prompt. In this plugin the control library holds the agent's rules (`SKILL.md`) and the hook's patterns (`patterns.json`) side by side, so the person who owns the policy edits every rule while the engineer owns only the code that runs it, and both gates enforce one definition.
+- Add a primitive only when it pays for itself. Every extra agent or MCP server is surface to maintain and context to carry.
