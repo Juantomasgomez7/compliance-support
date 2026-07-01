@@ -61,7 +61,7 @@ flowchart TD
     H1 -->|"out of scope"| SAVE["Write proceeds"]
     H1 -->|"in scope"| VIOL{"secret or<br/>weak crypto?"}
     VIOL -->|"no"| SAVE
-    VIOL -->|"yes"| BLOCK["Block the write, show the fix"]
+    VIOL -->|"yes"| BLOCK["Block the write,<br/>show the fix"]
     BLOCK -.->|"fix, re-save"| DEV
     SAVE -->|"turn ends"| H2{{"Stop hook"}}
     H2 -->|"nothing in scope"| SILENT["Silent, no model run"]
@@ -70,8 +70,8 @@ flowchart TD
     CMD[/"/compliance-review<br/>command"/] -->|"on demand"| AGENT
     AGENT --> REVIEW{"issues<br/>found?"}
     REVIEW -->|"no"| CLEAN["All clear"]
-    REVIEW -->|"yes"| OUT["Findings: control, line, fix"]
-    OUT -.->|"--report"| REPORT["compliance-report.md / .html"]
+    REVIEW -->|"yes"| OUT["Findings:<br/>control, line, fix"]
+    OUT -.->|"--report"| REPORT["compliance-report.md<br/>/ .html"]
 
     class DEV human
     class H1,H2,VIOL hook
