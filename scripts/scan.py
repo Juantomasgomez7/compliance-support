@@ -177,7 +177,7 @@ def main() -> None:
     rel = relative_path(file_path, cwd)
     include, exclude = load_scope(os.path.join(cwd, ".compliance.yml")) if cwd else ([], [])
     if not in_scope(rel, include, exclude):
-        return  # out of scope -> allow (this is the dev_seed.py precision beat)
+        return  # out of scope -> allow (e.g. dev tooling under scripts/)
 
     hits = find_violations(content)
     if not hits:

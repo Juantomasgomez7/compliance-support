@@ -3,10 +3,9 @@
 #
 # Thin, portable wrapper. The real logic lives in scan.py so a single readable
 # file parses the JSON payload and the .compliance.yml scope, then applies the
-# control-library patterns (patterns.json), testable anywhere Python runs, with no
-# extra binary (e.g. jq) to
-# install. Keeping the hook entry a .sh keeps it firing identically on macOS and
-# Windows (git-bash), which is verified in _planning/HANDOFF.md section 4.
+# control-library patterns (patterns.json), testable anywhere Python runs, with
+# no extra binary (e.g. jq) to install. Keeping the hook entry a .sh keeps it
+# firing identically on macOS and Windows (git-bash).
 #
 # stdin (the hook payload) is inherited by Python via exec. The scan blocks a
 # write by printing a deny decision and exiting 0; otherwise it stays silent.
@@ -23,5 +22,5 @@ for cand in python3 python py; do
 done
 
 # No working Python on PATH: fail open, never block a write just because the
-# scanner is unavailable. (The grader's macOS and our dev machine both have it.)
+# scanner is unavailable.
 exit 0

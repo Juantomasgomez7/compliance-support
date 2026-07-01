@@ -4,7 +4,8 @@ data for manual testing.
 This is dev tooling: it is NOT part of the deployed service and NOT in PCI scope
 (it lives under ``scripts/``, which ``.compliance.yml`` excludes). The key below is
 a dummy used only against the local mock processor. The gate should IGNORE this
-file, that is the "it didn't flag the dev key" precision beat.
+file: flagging a dummy dev key is the false positive that teaches engineers to
+distrust the gate.
 """
 
 # Dummy key for the local mock processor, never a real credential.
