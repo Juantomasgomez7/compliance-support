@@ -164,7 +164,7 @@ To roll it out to a whole org instead, see [Governance and team rollout](#govern
 
 Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up. Every block below is paste-ready.
 
-**0. Launch.** In a terminal at the repo root (if you just finished Installation, you are already in the session — skip to step 1):
+**0. Launch.** In a terminal at the repo root (if you just finished Installation, you are already in the session; skip to step 1):
 
 ```bash
 bash scripts/demo_reset.sh
@@ -197,9 +197,9 @@ def handle_payout(payout):
     return resp.json()
 ```
 
-**What happens:** Claude attempts the write and the hook denies it before the file lands, naming CTRL-1 for the hardcoded key and CTRL-2 for TLS off, with the approved fix for each. Claude reads that same message, so it will usually offer a compliant version that takes the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 3 may quietly review it too.) Whatever model or settings you run, the deny comes from the deterministic hook at write time; Claude may even read the gate's config first and predict the block, and it gets stopped all the same.
+**What happens:** Claude attempts the write and the hook denies it before the file lands, naming CTRL-1 for the hardcoded key and CTRL-2 for TLS off, with the approved fix for each. Claude reads that same message, so it will usually offer a compliant version that takes the key from configuration. That is the fix working. (If that compliant file lands, the turn-end gate from step 3 may quietly review it too.) Whatever model or settings you run, the deny comes from the deterministic hook at write time; Claude may even read the gate's config first and predict the block, and it gets stopped all the same.
 
-**What this means:** the secret never entered the codebase. There is no key to rotate and nothing for AppSec to chase later — and Marcus never had to know this was PCI Requirement 8. No model runs for this check, so the block costs nothing.
+**What this means:** the secret never entered the codebase. There is no key to rotate and nothing for AppSec to chase later, and Marcus never had to know this was PCI Requirement 8. No model runs for this check, so the block costs nothing.
 
 **2. Scope precision.** Paste:
 
@@ -211,23 +211,23 @@ Put the line PROCESSOR_API_KEY = "9c1f8e2a4b7d4e21a3f09c885d1b6f42" (a placehold
 
 **What this means:** the gate enforces exactly the fence line AppSec drew, and nothing more. A gate that flags out-of-scope code trains engineers to ignore it; precision is what keeps it installed.
 
-**3. The automatic gate.** This is the standard path — Gate 2 runs itself. Paste:
+**3. The automatic gate.** This is the standard path: Gate 2 runs itself. Paste:
 
 ```
 Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
 ```
 
-**What happens:** the edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them.
+**What happens:** the edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed. After flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them.
 
-**What this means:** enforcement with zero friction — nothing for the engineer to remember to run. Every turn that touches PCI-scoped code gets reviewed, so protection scales with Claude Code usage; and when nothing in scope changed, the hook stays silent and no model runs, so idle turns cost nothing.
+**What this means:** enforcement with zero friction: nothing for the engineer to remember to run. Every turn that touches PCI-scoped code gets reviewed, so protection scales with Claude Code usage; and when nothing in scope changed, the hook stays silent and no model runs, so idle turns cost nothing.
 
-The gate may just have fixed `refund.py` — that is the point, but the next two steps want the violations back in place. Restore the fixture from a terminal (a second tab; the first one is running Claude):
+The gate may just have fixed `refund.py`. That is the point, but the next two steps want the violations back in place. Restore the fixture from a terminal (a second tab; the first one is running Claude):
 
 ```bash
 bash scripts/demo_reset.sh
 ```
 
-**4. The on-demand review.** The same review, run on request — point it at any file. Paste:
+**4. The on-demand review.** The same review, run on request. Point it at any file. Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
@@ -249,7 +249,7 @@ examples/refunds-service/src/api/handlers/refund.py
 
 It does not edit your code.
 
-**What this means:** these are the two calls a pattern match cannot make — is this logged field personal data, does this handler move money without an audit entry. Today those wait for an AppSec reviewer who is outnumbered 150 to 1; here they are caught at the desk, minutes after being written, instead of surfacing in a pentest or a SOC 2 evidence review months later.
+**What this means:** these are the two calls a pattern match cannot make: is this logged field personal data, does this handler move money without an audit entry. Today those wait for an AppSec reviewer who is outnumbered 150 to 1; here they are caught at the desk, minutes after being written, instead of surfacing in a pentest or a SOC 2 evidence review months later.
 
 **5. The shareable report (optional).** Paste:
 
@@ -259,7 +259,7 @@ It does not edit your code.
 
 **What happens:** besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html`, and the HTML opens in your browser by itself. It lays out all four controls in plain English, with why each matters and what to do.
 
-**What this means:** the review becomes something Marcus can hand to a reviewer, and AppSec can keep with the audit trail — evidence instead of a verbal "it's clean". Findings flag issues for an engineer to fix; the report is not an audit sign-off.
+**What this means:** the review becomes something Marcus can hand to a reviewer, and AppSec can keep with the audit trail: evidence instead of a verbal "it's clean". Findings flag issues for an engineer to fix; the report is not an audit sign-off.
 
 When you are done, reset the fixture from a terminal:
 

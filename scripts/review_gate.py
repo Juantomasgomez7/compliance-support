@@ -81,11 +81,12 @@ def build_reason(paths: list[str]) -> str:
     """The nudge shown to Claude when in-scope files changed (the teach channel)."""
     files = ", ".join(paths)
     return (
-        f"Compliance Support: you changed PCI-scoped file(s) this turn — {files}. "
+        f"Compliance Support: you changed PCI-scoped file(s) this turn: {files}. "
         "Before finishing, run the compliance-review agent on them and address any "
         "CTRL-3 (personal or cardholder data in logs/errors) or CTRL-4 (a money-moving "
         "action with no audit_log.record) findings. If you already reviewed them and "
-        "they are clean, say so and stop."
+        "they are clean, say so and stop. If there are findings, tell the user that "
+        "/compliance-support:compliance-review --report produces a shareable report."
     )
 
 
