@@ -197,9 +197,9 @@ def handle_payout(payout):
     return resp.json()
 ```
 
-The write is blocked before it lands: the hook names CTRL-1 for the hardcoded key and CTRL-2 for TLS off, and shows the fix. Claude may then offer a compliant version that reads the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 5 may quietly review it too.)
+**What happens:** Claude attempts the write and the hook denies it before the file lands, naming CTRL-1 for the hardcoded key and CTRL-2 for TLS off, with the approved fix for each. Claude reads that same message, so it will usually offer a compliant version that takes the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 5 may quietly review it too.) Whatever model or settings you run, the deny comes from the deterministic hook at write time; Claude may even read the gate's config first and predict the block, and it gets stopped all the same.
 
-Whatever model or settings you run, the deny comes from the deterministic hook at write time. Claude may even read the gate's config first and predict the block; it gets stopped all the same.
+**What this means:** the secret never entered the codebase. There is no key to rotate, no finding for the next audit, and nothing for AppSec to chase — and Marcus never had to know this was PCI Requirement 8. No model runs for this check, so the block costs nothing.
 
 **2. Scope precision.** Paste:
 
@@ -207,7 +207,9 @@ Whatever model or settings you run, the deny comes from the deterministic hook a
 Put the line PROCESSOR_API_KEY = "9c1f8e2a4b7d4e21a3f09c885d1b6f42" (a placeholder, not a real key) in scripts/dev_seed.py.
 ```
 
-This write goes through: `scripts/` is dev tooling outside PCI scope, so the gate ignores it on purpose.
+**What happens:** the same key lands in `scripts/dev_seed.py` and the gate stays silent, because that path is dev tooling outside the PCI scope defined in `.compliance.yml`.
+
+**What this means:** the gate enforces exactly the fence line AppSec drew, and nothing more. A gate that flags out-of-scope code trains engineers to ignore it; precision is what keeps it installed.
 
 **3. The on-demand review.** Point Gate 2's judgment review at any file. Paste:
 
@@ -215,7 +217,7 @@ This write goes through: `scripts/` is dev tooling outside PCI scope, so the gat
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
 ```
 
-It returns the two judgment findings, with the control, the line, and the fix:
+**What happens:** the compliance-review agent reads the AppSec rulebook and returns the two judgment findings, with the control, the line, and the fix:
 
 ```
 examples/refunds-service/src/api/handlers/refund.py
@@ -231,13 +233,17 @@ examples/refunds-service/src/api/handlers/refund.py
 
 It does not edit your code.
 
+**What this means:** these are the two calls a pattern match cannot make — is this logged field personal data, does this handler move money without an audit entry. Today those wait for an AppSec reviewer who is outnumbered 150 to 1; here they are caught at the desk, minutes after being written, instead of surfacing in a pentest or a SOC 2 evidence review months later.
+
 **4. The shareable report (optional).** Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py --report
 ```
 
-Besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html` that opens in a browser, laying out all four controls with why each matters and what to do.
+**What happens:** besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html` that opens in a browser, laying out all four controls in plain English, each with why it matters and what to do.
+
+**What this means:** the review becomes something Marcus can hand to a reviewer, and AppSec can keep with the audit trail — evidence instead of a verbal "it's clean". Findings flag issues for an engineer to fix; the report is not an audit sign-off.
 
 **5. The automatic gate.** Paste:
 
@@ -245,7 +251,9 @@ Besides the inline findings, this writes `compliance-report.md` and a branded `c
 Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
 ```
 
-The edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them. That full loop is why this step runs last: after it, the fixture's planted findings may be gone until you reset.
+**What happens:** the edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them. That full loop is why this step runs last: after it, the fixture's planted findings may be gone until you reset.
+
+**What this means:** enforcement with zero friction — nothing for the engineer to remember to run. Every turn that touches PCI-scoped code gets reviewed, so protection scales with Claude Code usage; and when nothing in scope changed, the hook stays silent and no model runs, so idle turns cost nothing.
 
 When you are done, reset the fixture from a terminal:
 
