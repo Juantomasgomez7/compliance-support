@@ -3,9 +3,9 @@
 `/compliance-support:compliance-review --report` writes two files at the repo root:
 
 - `compliance-report.md` — the same report in plain text (good for diffs, CI logs, terminals).
-- `compliance-report.html` — a branded, self-contained report you can open in a browser or attach to an email.
+- `compliance-report.html` — a branded, self-contained report. The command opens it in your default browser on its own, and it attaches cleanly to an email.
 
-Both carry the same content; the HTML adds the logo, colours, and layout.
+Both carry the same content; the HTML adds the logo, colors, and layout.
 
 Both come from **`scripts/render_report.py`**, built from the findings the `compliance-review`
 agent emits. The report is a *flag-for-review* artifact, not an audit sign-off.
@@ -63,7 +63,7 @@ JSON and both gates move together.
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py --report
 ```
 
-Open `compliance-report.html` in a browser. Reset the example service with `bash scripts/demo_reset.sh`.
+The HTML opens in your browser on its own (the renderer's `--open` flag, which the command passes). Reset the example service with `bash scripts/demo_reset.sh`.
 
 ## Tests
 

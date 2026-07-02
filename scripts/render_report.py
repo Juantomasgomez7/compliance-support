@@ -11,6 +11,8 @@ argument. Each result has the shape the compliance-review agent emits:
 Writes compliance-report.md and compliance-report.html at the repo root. The agent
 supplies the per-finding specifics; this script supplies the control name, the
 mapping, and the "why it matters" text, so the report reads the same every time.
+
+With --open, also opens the HTML report in the default browser (best-effort).
 """
 from __future__ import annotations
 
@@ -499,6 +501,8 @@ def render_html(findings, clean, confirm_findings, files_scanned) -> str:
 
 
 def main() -> None:
+    auto_open = "--open" in sys.argv[1:]
+    sys.argv = [a for a in sys.argv if a != "--open"]
     results = load_results()
     findings, clean = collect(results)
     inscope_files = [r["file"] for r in results if r.get("in_scope", True)]
@@ -508,6 +512,14 @@ def main() -> None:
     open("compliance-report.html", "w", encoding="utf-8").write(
         render_html(findings, clean, confirm, scanned))
     print("Wrote compliance-report.md and compliance-report.html")
+    if auto_open:
+        try:
+            import webbrowser
+            from pathlib import Path
+            webbrowser.open(Path("compliance-report.html").resolve().as_uri())
+            print("Opened compliance-report.html in your browser")
+        except Exception:
+            pass  # best-effort: the files are already written either way
 
 
 if __name__ == "__main__":

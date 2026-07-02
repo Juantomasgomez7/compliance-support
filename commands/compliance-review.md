@@ -30,16 +30,18 @@ findings block from each reviewed file into one JSON array, including in-scope f
 and pass it to the renderer on stdin:
 
 ```bash
-python scripts/render_report.py <<'FINDINGS'
+python scripts/render_report.py --open <<'FINDINGS'
 [ ...the array of per-file JSON results: {"file", "in_scope", "findings": [...]}... ]
 FINDINGS
 ```
 
-The renderer writes `compliance-report.md` and a styled, browser-ready `compliance-report.html` at the
-repo root. It supplies the control names and the "why it matters" text, so do not hand-write the report.
+The renderer writes `compliance-report.md` and a styled `compliance-report.html` at the repo root, and
+`--open` pops the HTML in the user's default browser by itself. It supplies the control names and the
+"why it matters" text, so do not hand-write the report.
 The renderer also runs a deterministic CTRL-1/CTRL-2 confirmation over the reviewed files (the same
 patterns the hook enforces), so both reports present all four controls; the agent itself still reports
-only CTRL-3/CTRL-4. Tell the user both files were written and that the HTML opens in a browser.
+only CTRL-3/CTRL-4. Tell the user both files were written and that the report should already be on
+their screen.
 
 If `--report` was not passed, write no file, and end with:
 
