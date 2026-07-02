@@ -173,7 +173,7 @@ claude --plugin-dir .
 
 `demo_reset.sh` puts the fixture in a clean starting state and is safe to re-run between tries. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gates find no scope config, and the banner will say so instead of claiming protection.
 
-When the session starts you should see **“Compliance Support armed”**. No banner means the plugin is not loaded and nothing is enforced: exit and relaunch with `claude --plugin-dir .` from the repo root, accepting the trust prompt if one appears. You can double-check any time by typing `/compliance-support`: the review command should autocomplete.
+When the session starts you should see **"Compliance Support armed"**. No banner means the plugin is not loaded and nothing is enforced: exit and relaunch with `claude --plugin-dir .` from the repo root, accepting the trust prompt if one appears. You can double-check any time by typing `/compliance-support`: the review command should autocomplete.
 
 Steps 1–5 are typed into the Claude Code session, not the shell.
 
@@ -197,9 +197,9 @@ def handle_payout(payout):
     return resp.json()
 ```
 
-**What happens:** Claude attempts the write and the hook denies it before the file lands, naming CTRL-1 for the hardcoded key and CTRL-2 for TLS off, with the approved fix for each. Claude reads that same message, so it will usually offer a compliant version that takes the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 5 may quietly review it too.) Whatever model or settings you run, the deny comes from the deterministic hook at write time; Claude may even read the gate's config first and predict the block, and it gets stopped all the same.
+**What happens:** Claude attempts the write and the hook denies it before the file lands, naming CTRL-1 for the hardcoded key and CTRL-2 for TLS off, with the approved fix for each. Claude reads that same message, so it will usually offer a compliant version that takes the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 3 may quietly review it too.) Whatever model or settings you run, the deny comes from the deterministic hook at write time; Claude may even read the gate's config first and predict the block, and it gets stopped all the same.
 
-**What this means:** the secret never entered the codebase. There is no key to rotate, no finding for the next audit, and nothing for AppSec to chase — and Marcus never had to know this was PCI Requirement 8. No model runs for this check, so the block costs nothing.
+**What this means:** the secret never entered the codebase. There is no key to rotate and nothing for AppSec to chase later — and Marcus never had to know this was PCI Requirement 8. No model runs for this check, so the block costs nothing.
 
 **2. Scope precision.** Paste:
 
@@ -211,7 +211,23 @@ Put the line PROCESSOR_API_KEY = "9c1f8e2a4b7d4e21a3f09c885d1b6f42" (a placehold
 
 **What this means:** the gate enforces exactly the fence line AppSec drew, and nothing more. A gate that flags out-of-scope code trains engineers to ignore it; precision is what keeps it installed.
 
-**3. The on-demand review.** Point Gate 2's judgment review at any file. Paste:
+**3. The automatic gate.** This is the standard path — Gate 2 runs itself. Paste:
+
+```
+Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
+```
+
+**What happens:** the edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them.
+
+**What this means:** enforcement with zero friction — nothing for the engineer to remember to run. Every turn that touches PCI-scoped code gets reviewed, so protection scales with Claude Code usage; and when nothing in scope changed, the hook stays silent and no model runs, so idle turns cost nothing.
+
+The gate may just have fixed `refund.py` — that is the point, but the next two steps want the violations back in place. Restore the fixture from a terminal (a second tab; the first one is running Claude):
+
+```bash
+bash scripts/demo_reset.sh
+```
+
+**4. The on-demand review.** The same review, run on request — point it at any file. Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
@@ -235,25 +251,15 @@ It does not edit your code.
 
 **What this means:** these are the two calls a pattern match cannot make — is this logged field personal data, does this handler move money without an audit entry. Today those wait for an AppSec reviewer who is outnumbered 150 to 1; here they are caught at the desk, minutes after being written, instead of surfacing in a pentest or a SOC 2 evidence review months later.
 
-**4. The shareable report (optional).** Paste:
+**5. The shareable report (optional).** Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py --report
 ```
 
-**What happens:** besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html` that opens in a browser, laying out all four controls in plain English, each with why it matters and what to do.
+**What happens:** besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html`, and the HTML opens in your browser by itself. It lays out all four controls in plain English, with why each matters and what to do.
 
 **What this means:** the review becomes something Marcus can hand to a reviewer, and AppSec can keep with the audit trail — evidence instead of a verbal "it's clean". Findings flag issues for an engineer to fix; the report is not an audit sign-off.
-
-**5. The automatic gate.** Paste:
-
-```
-Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
-```
-
-**What happens:** the edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them. That full loop is why this step runs last: after it, the fixture's planted findings may be gone until you reset.
-
-**What this means:** enforcement with zero friction — nothing for the engineer to remember to run. Every turn that touches PCI-scoped code gets reviewed, so protection scales with Claude Code usage; and when nothing in scope changed, the hook stays silent and no model runs, so idle turns cost nothing.
 
 When you are done, reset the fixture from a terminal:
 
@@ -286,14 +292,14 @@ To ship a rule change, AppSec edits the control-library, bumps the `version` in 
 
 ## Primitives this plugin uses
 
-| Part                                                           | Primitive         | What it does                                                                                                                                                                                  | Why this primitive                                                                                                                      |
-| -------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill             | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-3/4); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-1/2) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
-| `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse) | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
-| `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)       | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
-| `scripts/session_start.sh`                                   | Hook (SessionStart) | Shows the “Compliance Support armed” banner at session start, or a warning when no `.compliance.yml` scope is found                                                                        | A guarded session must be visibly different from an unguarded one; no banner means nothing is enforced                                  |
-| `agents/compliance-review.md`                                | Agent             | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
-| `/compliance-support:compliance-review`                      | Command           | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
+| Part                                                           | Primitive           | What it does                                                                                                                                                                                  | Why this primitive                                                                                                                      |
+| -------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill               | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-3/4); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-1/2) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
+| `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse)   | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
+| `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)         | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
+| `scripts/session_start.sh`                                   | Hook (SessionStart) | Shows the "Compliance Support armed" banner at session start, or a warning when no`.compliance.yml` scope is found                                                                        | A guarded session must be visibly different from an unguarded one; no banner means nothing is enforced                                  |
+| `agents/compliance-review.md`                                | Agent               | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
+| `/compliance-support:compliance-review`                      | Command             | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
 
 Two files carry data, not behavior, so they get no row above: `.compliance.yml` (the scope) and `patterns.json` (the detection rules, data inside the control-library skill).
 
