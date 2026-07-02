@@ -103,6 +103,9 @@ class BuildReasonTests(unittest.TestCase):
         self.assertIn("CTRL-3", r)
         self.assertIn("CTRL-4", r)
 
+    def test_offers_the_shareable_report(self):
+        self.assertIn("--report", rg.build_reason(["a.py"]))
+
 
 class DecideTests(unittest.TestCase):
     INCLUDE = ["examples/refunds-service/src/**"]
