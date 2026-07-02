@@ -195,27 +195,19 @@ def handle_payout(payout):
     return resp.json()
 ```
 
-The write is blocked before it lands: the hook names CTRL-1 for the hardcoded key and CTRL-2 for TLS off, and shows the fix. Claude may then offer a compliant version that reads the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 3 may quietly review it too.)
+The write is blocked before it lands: the hook names CTRL-1 for the hardcoded key and CTRL-2 for TLS off, and shows the fix. Claude may then offer a compliant version that reads the key from configuration — that is the fix working. (If that compliant file lands, the turn-end gate from step 5 may quietly review it too.)
 
 Whatever model or settings you run, the deny comes from the deterministic hook at write time. Claude may even read the gate's config first and predict the block; it gets stopped all the same.
 
 **2. Scope precision.** Paste:
 
 ```
-Put the line PROCESSOR_API_KEY = "9c1f8e2a4b7d4e21a3f09c885d1b6f42" in scripts/dev_seed.py.
+Put the line PROCESSOR_API_KEY = "9c1f8e2a4b7d4e21a3f09c885d1b6f42" (a placeholder, not a real key) in scripts/dev_seed.py.
 ```
 
 This write goes through: `scripts/` is dev tooling outside PCI scope, so the gate ignores it on purpose.
 
-**3. The automatic gate.** Paste:
-
-```
-Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
-```
-
-The edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review with no command typed — flagging the two judgment issues that live in `refund.py`.
-
-**4. The on-demand review.** The same review runs on request — point it at any file. Paste:
+**3. The on-demand review.** Point Gate 2's judgment review at any file. Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
@@ -237,13 +229,21 @@ examples/refunds-service/src/api/handlers/refund.py
 
 It does not edit your code.
 
-**5. The shareable report (optional).** Paste:
+**4. The shareable report (optional).** Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py --report
 ```
 
 Besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html` that opens in a browser, laying out all four controls with why each matters and what to do.
+
+**5. The automatic gate.** Paste:
+
+```
+Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
+```
+
+The edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review on its own, with no command typed — and after flagging the two judgment issues that live in `refund.py`, it will often go ahead and fix them. That full loop is why this step runs last: after it, the fixture's planted findings may be gone until you reset.
 
 When you are done, reset the fixture from a terminal:
 
