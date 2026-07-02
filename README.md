@@ -24,13 +24,11 @@ Like Marcus, there are many hundreds of engineers at Capital One who face this e
 
 ## How the plugin addresses the problem
 
-The plugin closes that split by embedding the AppSec team's controls directly into the engineer's Claude Code session, so the rules are enforced at the moment code gets written. For Marcus, almost nothing changes: as long as he ships with Claude Code, the standards ride along with him. Under the hood, the plugin runs a two-gate system, and both gates read from a single control library that AppSec owns and edits directly.
+The plugin closes that split by embedding the AppSec team's controls directly into the engineer's Claude Code session, so the rules are enforced at the moment code gets written. For Marcus, almost nothing changes: as long as he ships with Claude Code, the standards ride along with him, and the plugin speaks up only if he breaches a compliance standard. Under the hood, the plugin runs a two-gate system, and both gates read from a single control library that AppSec owns and edits directly.
 
 Gate 1 uses a deterministic PreToolUse hook that fires before any in-scope file is written: it scans new content against AppSec's patterns and blocks a hardcoded secret or weak cryptography before the write ever lands.
 
 Gate 2 automatically runs a Stop hook when Claude finishes a turn: a review agent reads the changed files and makes the two calls that need judgment, flagging PII or cardholder data written to a log and any money-moving action leaving no audit trail.
-
-By design, almost nothing changes for Marcus in his day-to-day. As long as he's leveraging Claude Code, the plugin will speak up only if Marcus breaches a compliance standard.
 
 ## The Result
 
