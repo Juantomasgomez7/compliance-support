@@ -162,9 +162,20 @@ To roll it out to a whole org instead, see [Governance and team rollout](#govern
 
 ## Try it in under 5 minutes
 
-Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up.
+Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up. Every block below is paste-ready.
 
-Point the review at the example refund handler:
+**0. Launch.** In a terminal at the repo root (if you just finished Installation, you are already in the session — skip to step 1):
+
+```bash
+bash scripts/demo_reset.sh
+claude --plugin-dir .
+```
+
+`demo_reset.sh` puts the fixture in a clean starting state and is safe to re-run between tries. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gate finds no scope config and stays silent. If the command in step 1 is not recognized, the session was launched without `--plugin-dir .`: exit and relaunch with the lines above.
+
+Steps 1–5 are typed into the Claude Code session, not the shell.
+
+**1. The on-demand review.** Paste:
 
 ```
 /compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py
@@ -184,15 +195,45 @@ examples/refunds-service/src/api/handlers/refund.py
     Fix: record the refund to the audit log after it succeeds.
 ```
 
-It does not edit your code. Add `--report` to also write a shareable version, as Markdown and as a branded HTML file that opens in a browser.
+It does not edit your code.
 
-Three more things to try:
+**2. Block on write.** Paste:
 
-- **Block on write.** Ask Claude to add `examples/refunds-service/src/api/handlers/payout.py` that calls the processor with a hardcoded `PROCESSOR_API_KEY = "sk_live_..."` and `verify=False`. The write is blocked, with the control and the fix.
-- **Scope precision.** Put the same key in `scripts/dev_seed.py` and the write goes through, because that path is outside PCI scope.
-- **The automatic gate.** Add a log line to `refund.py` and let Claude finish its turn. The Stop hook notices the in-scope change and reviews it, with no command typed.
+```
+Add a new handler examples/refunds-service/src/api/handlers/payout.py that calls the processor with PROCESSOR_API_KEY = "sk_live_EXAMPLE_not_a_real_key_000" and verify=False.
+```
 
-Reset the fixture with `bash scripts/demo_reset.sh`.
+The write is blocked before it lands: the hook names CTRL-1 for the hardcoded key and CTRL-2 for TLS off, and shows the fix. Claude may then offer a compliant version that reads the key from the environment — that is the fix working.
+
+**3. Scope precision.** Paste:
+
+```
+Put the line PROCESSOR_API_KEY = "sk_live_EXAMPLE_not_a_real_key_000" in scripts/dev_seed.py.
+```
+
+This write goes through: `scripts/` is dev tooling outside PCI scope, so the gate ignores it on purpose.
+
+**4. The automatic gate.** Paste:
+
+```
+Add a debug log line with the refund id to examples/refunds-service/src/api/handlers/refund.py.
+```
+
+The edit itself is clean, so nothing blocks. But when Claude finishes the turn, the Stop hook notices an in-scope file changed and runs the review with no command typed — flagging the two judgment issues that live in `refund.py`.
+
+**5. The shareable report (optional).** Paste:
+
+```
+/compliance-support:compliance-review examples/refunds-service/src/api/handlers/refund.py --report
+```
+
+Besides the inline findings, this writes `compliance-report.md` and a branded `compliance-report.html` that opens in a browser, laying out all four controls with why each matters and what to do.
+
+When you are done, reset the fixture from a terminal:
+
+```bash
+bash scripts/demo_reset.sh
+```
 
 ## Testing and evaluation
 
