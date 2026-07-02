@@ -83,9 +83,9 @@ flowchart TD
     classDef config fill:#e9fac8,stroke:#66a80f,color:#000000
 
     APPSEC(["AppSec team"]) -->|"owns & edits"| CL
-    APPSEC -->|"owns & edits"| SCOPE[".compliance.yml<br/>in-scope paths"]
-    subgraph CL["control-library folder"]
+    subgraph CL["AppSec-owned: control library + scope"]
         PATT["patterns.json<br/>deterministic patterns"]
+        SCOPE[".compliance.yml (repo root)<br/>in-scope paths"]
         SKILLMD["SKILL.md<br/>judgment rulebook"]
     end
     CL ~~~ DEV([Developer edits code])
