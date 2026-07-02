@@ -116,7 +116,8 @@ flowchart TD
     SAVE -->|"turn ends"| H2
     H2 -->|"nothing in scope"| SILENT
     H2 -->|"in-scope change"| AGENT
-    H2 ~~~ CMD[/"/compliance-review<br/>manual command"/]
+    RUN(["Manual command"]) --> CMD[/"/compliance-review<br/>command"/]
+    SAVE ~~~ RUN
     CMD --> AGENT
     SKILLMD -.->|"read by"| AGENT
     AGENT --> REVIEW
@@ -124,7 +125,7 @@ flowchart TD
     REVIEW -->|"yes"| OUT
     OUT -.->|"--report"| REPORT
 
-    class DEV,APPSEC human
+    class DEV,APPSEC,RUN human
     class H1,H2,VIOL hook
     class AGENT,REVIEW agent
     class PATT,SKILLMD skill
