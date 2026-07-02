@@ -7,11 +7,11 @@ description: The data-protection control rules for a PCI-scoped codebase, coveri
 
 The single source of truth for what counts as a data-protection violation and what the approved fix is.
 This control library, owned by AppSec, defines all four controls across two files that sit side by side:
-this `SKILL.md` holds the two judgment controls (CTRL-1, CTRL-2), which the `compliance-review` agent
-preloads to make its calls and cite controls; `patterns.json` (beside this file) holds the detection
-regexes for the two deterministic controls (CTRL-3, CTRL-4), which the hook (`scan.sh`) reads to block
-the write. Engineering owns only the mechanism: the hook, the agent wiring, the report renderer, never a
-control definition.
+`patterns.json` (beside this file) holds the detection regexes for the two deterministic controls
+(CTRL-1, CTRL-2), which the hook (`scan.sh`) reads to block the write; this `SKILL.md` holds the two
+judgment controls (CTRL-3, CTRL-4), which the `compliance-review` agent preloads to make its calls and
+cite controls. Engineering owns only the mechanism: the hook, the agent wiring, the report renderer,
+never a control definition.
 
 **How to use these rules**
 - Cite control IDs at the family level (for example "PCI Req 3 & 10"), not a specific sub-requirement.
@@ -23,7 +23,42 @@ control definition.
 
 ---
 
-## CTRL-1: PII or cardholder data in logs or errors
+## CTRL-1: Hardcoded secrets or credentials
+- **Maps to:** PCI DSS Req 8
+- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
+- **Violation:** a literal secret in source: an API key, token, or password assigned to a variable or
+  passed inline. This includes provider-format keys (`sk_live_…`, `AKIA…`, `ghp_…`, `xox…`) and
+  high-entropy string literals assigned to a `*_KEY`, `*_SECRET`, `*_TOKEN`, or `*_PASSWORD` name.
+- **Not a violation:** reading the secret from the environment or a secrets manager
+  (`os.environ["PROCESSOR_API_KEY"]`).
+- **Fix:** read the value at runtime from the environment or a secrets manager, and keep the literal out
+  of source control entirely.
+
+```python
+# before: hardcoded credential in source (blocked)
+PROCESSOR_API_KEY = "9c1f8e2a7b4d6051c3e9f0a2b8d4e6f1"
+# after: injected from the environment
+PROCESSOR_API_KEY = os.environ["PROCESSOR_API_KEY"]
+```
+
+## CTRL-2: Weak cryptography or disabled transport security
+- **Maps to:** PCI DSS Req 3 & 4 · SOC 2 CC6.7
+- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
+- **Violation:** using a weak or broken algorithm to protect data (MD5 or SHA-1 for security, DES, RC4,
+  or AES in ECB mode), or disabling TLS verification on an outbound call (`verify=False`,
+  `ssl._create_unverified_context()`).
+- **Not a violation:** strong primitives (bcrypt, scrypt, or argon2 for secrets, AES-GCM for encryption)
+  with TLS verification left on.
+- **Fix:** use a strong primitive, and keep TLS verification enabled (`verify=True`, or the default).
+
+```python
+# before: TLS verification disabled (blocked)
+requests.post(url, json=payload, verify=False)
+# after: verification on (default)
+requests.post(url, json=payload)
+```
+
+## CTRL-3: PII or cardholder data in logs or errors
 - **Maps to:** PCI DSS Req 3 & 10 · GDPR Art 5 & 32
 - **Enforced by:** agent (judgment)
 - **Violation:** writing personal data (email, name, address, government id) or cardholder data (full
@@ -42,7 +77,7 @@ log.info("issuing refund %s for %s on card %s", refund_id, user.email, card.numb
 log.info("issuing refund %s for account %s", refund_id, account_id)
 ```
 
-## CTRL-2: Money-moving or state-changing action without an audit-log entry
+## CTRL-4: Money-moving or state-changing action without an audit-log entry
 - **Maps to:** SOC 2 CC7.2 · PCI DSS Req 10
 - **Enforced by:** agent (judgment)
 - **Violation:** a handler that moves money or changes state (issue or reverse a refund, adjust a
@@ -57,39 +92,4 @@ log.info("issuing refund %s for account %s", refund_id, account_id)
 result = process_refund(refund_id)
 audit_log.record(actor=user.id, action="refund.issued", resource=f"refund:{refund_id}")
 return result
-```
-
-## CTRL-3: Hardcoded secrets or credentials
-- **Maps to:** PCI DSS Req 8
-- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
-- **Violation:** a literal secret in source: an API key, token, or password assigned to a variable or
-  passed inline. This includes provider-format keys (`sk_live_…`, `AKIA…`, `ghp_…`, `xox…`) and
-  high-entropy string literals assigned to a `*_KEY`, `*_SECRET`, `*_TOKEN`, or `*_PASSWORD` name.
-- **Not a violation:** reading the secret from the environment or a secrets manager
-  (`os.environ["PROCESSOR_API_KEY"]`).
-- **Fix:** read the value at runtime from the environment or a secrets manager, and keep the literal out
-  of source control entirely.
-
-```python
-# before: hardcoded credential in source (blocked)
-PROCESSOR_API_KEY = "9c1f8e2a7b4d6051c3e9f0a2b8d4e6f1"
-# after: injected from the environment
-PROCESSOR_API_KEY = os.environ["PROCESSOR_API_KEY"]
-```
-
-## CTRL-4: Weak cryptography or disabled transport security
-- **Maps to:** PCI DSS Req 3 & 4 · SOC 2 CC6.7
-- **Enforced by:** hook (deterministic) via the regexes in `patterns.json` beside this file; blocks the write
-- **Violation:** using a weak or broken algorithm to protect data (MD5 or SHA-1 for security, DES, RC4,
-  or AES in ECB mode), or disabling TLS verification on an outbound call (`verify=False`,
-  `ssl._create_unverified_context()`).
-- **Not a violation:** strong primitives (bcrypt, scrypt, or argon2 for secrets, AES-GCM for encryption)
-  with TLS verification left on.
-- **Fix:** use a strong primitive, and keep TLS verification enabled (`verify=True`, or the default).
-
-```python
-# before: TLS verification disabled (blocked)
-requests.post(url, json=payload, verify=False)
-# after: verification on (default)
-requests.post(url, json=payload)
 ```

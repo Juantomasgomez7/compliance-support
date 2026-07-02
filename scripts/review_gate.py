@@ -4,7 +4,7 @@
 When Claude finishes a turn, this decides whether to nudge it to run the
 compliance-review agent over the PCI-scoped files it changed. It is the Tier-2
 companion to scan.py (Tier-1): scan.py blocks bad writes in real time; this
-flags the two *judgment* controls (CTRL-1 PII in logs, CTRL-2 missing audit log)
+flags the two *judgment* controls (CTRL-3 PII in logs, CTRL-4 missing audit log)
 at the end of the turn, once per change-set, and never blocks.
 
 Cost discipline: if no in-scope file changed, it exits silently and no model
@@ -83,7 +83,7 @@ def build_reason(paths: list[str]) -> str:
     return (
         f"Compliance Support: you changed PCI-scoped file(s) this turn — {files}. "
         "Before finishing, run the compliance-review agent on them and address any "
-        "CTRL-1 (personal or cardholder data in logs/errors) or CTRL-2 (a money-moving "
+        "CTRL-3 (personal or cardholder data in logs/errors) or CTRL-4 (a money-moving "
         "action with no audit_log.record) findings. If you already reviewed them and "
         "they are clean, say so and stop."
     )

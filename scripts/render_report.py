@@ -5,7 +5,7 @@ Reads a JSON array of per-file results on stdin, or from a file given as the fir
 argument. Each result has the shape the compliance-review agent emits:
 
     {"file": "...", "in_scope": true, "findings": [
-        {"control": "CTRL-1", "line": 19, "evidence": "...", "fix": "..."}
+        {"control": "CTRL-3", "line": 19, "evidence": "...", "fix": "..."}
     ]}
 
 Writes compliance-report.md and compliance-report.html at the repo root. The agent
@@ -34,6 +34,22 @@ LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "asse
 
 CONTROLS = {
     "CTRL-1": {
+        "name": "Hardcoded secret or credential",
+        "maps_to": "PCI Req 8",
+        "why": "A secret in source is exposed to everyone with repository access and is hard to rotate. "
+               "It belongs in the environment or a secrets manager.",
+        "kind": "block",
+        "fix": "Read it from the environment, e.g. os.environ['PROCESSOR_API_KEY'].",
+    },
+    "CTRL-2": {
+        "name": "Weak cryptography or disabled transport security",
+        "maps_to": "PCI Req 3 & 4, SOC 2 CC6.7",
+        "why": "Broken algorithms and disabled TLS verification leave data readable or alterable in "
+               "transit or at rest.",
+        "kind": "block",
+        "fix": "Use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on.",
+    },
+    "CTRL-3": {
         "name": "PII or cardholder data in logs or errors",
         "maps_to": "PCI Req 3 & 10, GDPR Art 5 & 32",
         "why": "Logs are widely readable and long retained, and are often shipped outside the "
@@ -42,29 +58,13 @@ CONTROLS = {
         "kind": "review",
         "fix": "Log a non-sensitive identifier (account or refund id) instead of the raw value.",
     },
-    "CTRL-2": {
+    "CTRL-4": {
         "name": "Money-moving action without an audit-log entry",
         "maps_to": "SOC 2 CC7.2, PCI Req 10",
         "why": "Every action that moves money needs a who-did-what-when trail. Without one there is no "
                "way to detect, investigate, or attribute a mistaken or fraudulent action after the fact.",
         "kind": "review",
         "fix": "Call audit_log.record(...) after the action succeeds, with non-sensitive metadata only.",
-    },
-    "CTRL-3": {
-        "name": "Hardcoded secret or credential",
-        "maps_to": "PCI Req 8",
-        "why": "A secret in source is exposed to everyone with repository access and is hard to rotate. "
-               "It belongs in the environment or a secrets manager.",
-        "kind": "block",
-        "fix": "Read it from the environment, e.g. os.environ['PROCESSOR_API_KEY'].",
-    },
-    "CTRL-4": {
-        "name": "Weak cryptography or disabled transport security",
-        "maps_to": "PCI Req 3 & 4, SOC 2 CC6.7",
-        "why": "Broken algorithms and disabled TLS verification leave data readable or alterable in "
-               "transit or at rest.",
-        "kind": "block",
-        "fix": "Use a strong primitive (bcrypt / AES-GCM) and keep TLS verification on.",
     },
 }
 _UNKNOWN = {"name": "Unknown control", "maps_to": "", "why": "", "kind": "review", "fix": ""}
@@ -76,10 +76,10 @@ HOW_CHECKED = {
     "block": "Automatic gate (blocks the save) + confirmation scan",
 }
 GUARD_AGAINST = {
-    "CTRL-1": "Personal or card data ending up in logs or error messages",
-    "CTRL-2": "Money-moving actions that leave no audit trail",
-    "CTRL-3": "Passwords / API keys written directly into the source code",
-    "CTRL-4": "Weak encryption, or TLS certificate checking turned off",
+    "CTRL-1": "Passwords / API keys written directly into the source code",
+    "CTRL-2": "Weak encryption, or TLS certificate checking turned off",
+    "CTRL-3": "Personal or card data ending up in logs or error messages",
+    "CTRL-4": "Money-moving actions that leave no audit trail",
 }
 
 # The actual standard clauses the controls map to, in plain terms (family level, matching
@@ -104,13 +104,13 @@ STANDARDS = [
 ]
 
 
-# --- Confirmatory scan (CTRL-3 / CTRL-4) --------------------------------------
+# --- Confirmatory scan (CTRL-1 / CTRL-2) --------------------------------------
 # A point-in-time re-check of the reviewed files for the two deterministic controls
 # the pre-write hook enforces, reusing the hook's exact patterns (imported above).
 # The hook blocks these at write time; this confirms the files on disk are clean and
 # catches anything introduced outside Claude Code (bypassing the hook).
 def scan_content(content: str) -> list[dict]:
-    """Per-line CTRL-3 / CTRL-4 hits in one file's text.
+    """Per-line CTRL-1 / CTRL-2 hits in one file's text.
 
     Returns findings shaped like the agent's: {control, line, evidence, fix}. Per-line
     matching mirrors the hook's whole-content patterns and yields a line number.
@@ -118,16 +118,16 @@ def scan_content(content: str) -> list[dict]:
     hits: list[dict] = []
     for n, line in enumerate(content.splitlines(), start=1):
         if any(p.search(line) for p in SECRET_PATTERNS):
-            hits.append({"control": "CTRL-3", "line": n,
-                         "evidence": line.strip(), "fix": CONTROLS["CTRL-3"]["fix"]})
+            hits.append({"control": "CTRL-1", "line": n,
+                         "evidence": line.strip(), "fix": CONTROLS["CTRL-1"]["fix"]})
         if any(p.search(line) for p in (*WEAK_CRYPTO_PATTERNS, *TLS_OFF_PATTERNS)):
-            hits.append({"control": "CTRL-4", "line": n,
-                         "evidence": line.strip(), "fix": CONTROLS["CTRL-4"]["fix"]})
+            hits.append({"control": "CTRL-2", "line": n,
+                         "evidence": line.strip(), "fix": CONTROLS["CTRL-2"]["fix"]})
     return hits
 
 
 def confirmatory_findings(files: list[str]) -> tuple[list[dict], int]:
-    """Scan each readable file for CTRL-3/CTRL-4. Returns (findings, files_scanned)."""
+    """Scan each readable file for CTRL-1/CTRL-2. Returns (findings, files_scanned)."""
     findings: list[dict] = []
     scanned = 0
     for path in files:

@@ -5,8 +5,8 @@ verified with exact golden tests. The agent's judgment is measured with precisio
 
 ## Hook: deterministic golden tests
 
-This suite feeds crafted `PreToolUse` payloads into `scan.sh` and asserts block or allow for CTRL-3
-(secrets), CTRL-4 (weak crypto and TLS-off), and scope. It uses no model and no network, and runs in a
+This suite feeds crafted `PreToolUse` payloads into `scan.sh` and asserts block or allow for CTRL-1
+(secrets), CTRL-2 (weak crypto and TLS-off), and scope. It uses no model and no network, and runs in a
 second.
 
 ```bash
@@ -16,7 +16,7 @@ bash eval/hook/test_hook.sh
 ## Agent: precision and recall
 
 This script runs the `compliance-review` agent against the labeled cases in `cases.yml` and scores the
-control IDs it flags (CTRL-1 PII in logs, CTRL-2 missing audit) against the expected set.
+control IDs it flags (CTRL-3 PII in logs, CTRL-4 missing audit) against the expected set.
 
 ```bash
 python eval/run_eval.py

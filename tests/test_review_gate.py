@@ -100,8 +100,8 @@ class BuildReasonTests(unittest.TestCase):
 
     def test_cites_both_judgment_controls(self):
         r = rg.build_reason(["a.py"])
-        self.assertIn("CTRL-1", r)
-        self.assertIn("CTRL-2", r)
+        self.assertIn("CTRL-3", r)
+        self.assertIn("CTRL-4", r)
 
 
 class DecideTests(unittest.TestCase):

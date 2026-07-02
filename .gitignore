@@ -6,7 +6,7 @@ docs/superpowers/
 /compliance-report.md
 /compliance-report.html
 
-# Office documents and their lock files (the writeup stays private).
+# Office documents and their lock files (private notes, never published).
 *.docx
 ~$*
 
