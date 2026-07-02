@@ -9,7 +9,7 @@
       "name": "compliance-support",
       "source": "./",
       "description": "A Claude Code plugin for engineers who write PCI cardholder-data code. It blocks hardcoded secrets and weak crypto as the code is written, and reviews changed code for PII in logs and money-moving actions with no audit trail when the turn ends.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "MIT",
       "keywords": ["compliance", "pci-dss", "soc2", "gdpr", "security", "data-protection", "guardrails"]
     }
