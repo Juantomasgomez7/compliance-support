@@ -14,7 +14,9 @@ This plugin is built for engineers like Marcus. If you don't touch code with car
 
 Every change to code that touches payment card data has to satisfy PCI DSS, SOC 2, and GDPR regulations.
 
-However, the enforcement of these regulations is owned by the application security (AppSec) team. At a bank the size of Capital One there is roughly one AppSec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
+Fundamentally, the problem is that the people who own the technical compliance knowledge (the Application Security team) are not the same people who ship technology (Engineering Teams).
+
+At a bank the size of Capital One, there's roughly one Applications Security engineer for every 150 developers. This impacts the entire bank. AppSec reviewers are outnumbered, engineering runs into bottlenecks, and the bank pays the cost in EBITDA by either having to move slow or being exposed to risk.
 
 Violations get caught late in a pentest or a SOC 2 evidence review where they cost hundreds of times more to fix than they would had they been caught on time. A single miss on a payments service becomes a serious regulatory and reputational risk for the bank, and is considered a grave mistake for the AppSec team, as well as for the engineering team who shipped the code. No one benefits from the status quo.
 
