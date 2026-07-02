@@ -1,10 +1,10 @@
-# Compliance Support
+# Compliance Support Plugin - Capital One
 
 Compliance Support is a Claude Code plugin built for Capital One backend engineers who write code that touches PCI data. It catches four types of data-protection compliance breaches: 1. hardcoded secrets; 2. weak crypto; 3. PII or cardholder data written to a log; and 4. money-moving actions leaving no audit trail.
 
 ## Who this plugin is for
 
-This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He constantly has to stay up to date with the changes that the bank's AppSec team enforces.
+This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. Nearly every path he writes touches cardholder data, which means his code must satisfy PCI DSS, SOC 2, and GDPR regulations. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. Additionally, he constantly has to stay up to date with internal and external compliance changes that the bank's Applications Security (AppSec) team enforces.
 
 Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to adopt it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
 
@@ -26,13 +26,13 @@ By design, almost nothing changes for Marcus in his day-to-day. As long as he's 
 
 **Compliance Standards:**
 
-The compliance standards are owned and maintained centrally by the AppSec team in the control-library included within the plugin's installable package. The folder `skills/control-library/` holds two critical files: 1. a set of deterministic detection patterns (`patterns.json`); and 2. a rulebook (`SKILL.md`) for whenever an agent needs to make a judgment call. Both are plain files governed and edited by the AppSec team directly. The repo is also a single-plugin marketplace, which is how an org rolls the plugin out and keeps it current.
+The compliance standards are owned and maintained centrally by the AppSec team in the control-library included within the plugin's installable package. The folder `skills/control-library/` holds two critical files: 1. a set of deterministic detection patterns (`patterns.json`); and 2. a rulebook (`SKILL.md`). Both are plain files governed and edited by the AppSec team directly where any compliance methodology or control can be updated. The repo is also a single-plugin marketplace, which is how an org rolls the plugin out and keeps it current. As long as Marcus has the latest version, the compliance standards kick in by themselves.
 
 When Marcus writes code, the plugin runs a two-gate system, both gates reading from that one AppSec-owned library. To ship a rule change, AppSec edits the control-library, bumps the `version` in the manifest, and pushes. Each engineer picks it up automatically at session start if the org enables auto-update for the marketplace.
 
 **The plugin catches compliance breaches through a two phase approach:**
 
-**Gate 1 runs as the code is being written**
+**Gate 1 runs deterministic checks through a PreToolUse Hook**
 
 When Marcus sends a message and Claude goes to write a file, a PreToolUse hook fires. It checks the path against the scope in `.compliance.yml`, and if the file is in scope it scans the new content against the library's deterministic patterns: a hardcoded secret, weak crypto, TLS verification off.
 
@@ -164,20 +164,9 @@ To roll it out to a whole org instead, see [Governance and team rollout](#govern
 
 Everything runs on the bundled `examples/refunds-service/` fixture, so there is no real code and nothing to set up. Every block below is paste-ready.
 
-**0. Launch.** In a terminal at the repo root (if you just finished Installation, you are already in the session; skip to step 1):
-
-```bash
-bash scripts/demo_reset.sh
-claude --plugin-dir .
-```
-
-`demo_reset.sh` puts the fixture in a clean starting state and is safe to re-run between tries. Launch from the repo root where `.compliance.yml` lives; started from a subdirectory the gates find no scope config, and the banner will say so instead of claiming protection.
-
-When the session starts you should see **"Compliance Support armed"**. No banner means the plugin is not loaded and nothing is enforced: exit and relaunch with `claude --plugin-dir .` from the repo root, accepting the trust prompt if one appears. You can double-check any time by typing `/compliance-support`: the review command should autocomplete.
-
 Steps 1–5 are typed into the Claude Code session, not the shell.
 
-**1. Block on write.** Paste:
+**1. Gate 1: Block on write.** Paste:
 
 ```
 Create examples/refunds-service/src/api/handlers/payout.py with exactly this content:
@@ -297,7 +286,7 @@ To ship a rule change, AppSec edits the control-library, bumps the `version` in 
 | `skills/control-library/` (`SKILL.md` + `patterns.json`) | Skill               | The AppSec-owned control library feeding both gates:`SKILL.md` is the rulebook the agent reads (CTRL-3/4); `patterns.json` is the deterministic patterns the Gate 1 hook loads (CTRL-1/2) | Editable knowledge and data with no code, so compliance can change any control, for either gate, without touching the hook or the agent |
 | `scripts/scan.sh` → `scan.py`                             | Hook (PreToolUse)   | Gate 1: loads the control-library's`patterns.json` and blocks hardcoded secrets and weak crypto before the write lands                                                                      | The write has to stop deterministically, before any model, at no cost                                                                   |
 | `scripts/review_gate.sh` → `review_gate.py`               | Hook (Stop)         | Gate 2: runs the review when Claude finishes a turn                                                                                                                                           | Zero friction, nothing for the engineer to remember to run                                                                              |
-| `scripts/session_start.sh`                                   | Hook (SessionStart) | Shows the "Compliance Support armed" banner at session start, or a warning when no`.compliance.yml` scope is found                                                                        | A guarded session must be visibly different from an unguarded one; no banner means nothing is enforced                                  |
+| `scripts/session_start.sh`                                   | Hook (SessionStart) | Shows the "Compliance Support armed" banner at session start, or a warning when no`.compliance.yml` scope is found                                                                          | A guarded session must be visibly different from an unguarded one; no banner means nothing is enforced                                  |
 | `agents/compliance-review.md`                                | Agent               | Makes Gate 2's two judgment calls: PII or cardholder data in logs, and a money move with no audit-log entry                                                                                   | Both need reasoning a regex cannot do, and a single false positive teaches engineers to ignore the gate                                 |
 | `/compliance-support:compliance-review`                      | Command             | Runs the Gate 2 review on demand, with`--report` for a shareable report                                                                                                                     | A manual entry point for when you want one                                                                                              |
 
