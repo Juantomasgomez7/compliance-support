@@ -67,7 +67,8 @@ flowchart LR
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
     classDef command fill:#dbe9ff,stroke:#1971c2,color:#000000
     classDef state fill:#f1f3f5,stroke:#868e96,color:#000000
-    k1["Human action"]:::human ~~~ k2["Hook"]:::hook ~~~ k3["Agent"]:::agent ~~~ k4["Skill"]:::skill ~~~ k5["Command"]:::command ~~~ k6["Result"]:::state
+    classDef config fill:#e9fac8,stroke:#66a80f,color:#000000
+    k1["Human action"]:::human ~~~ k2["Hook"]:::hook ~~~ k3["Agent"]:::agent ~~~ k4["Skill"]:::skill ~~~ k5["Command"]:::command ~~~ k6["Config file"]:::config ~~~ k7["Result"]:::state
 ```
 
 ```mermaid
@@ -79,8 +80,10 @@ flowchart TD
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
     classDef command fill:#dbe9ff,stroke:#1971c2,color:#000000
     classDef state fill:#f1f3f5,stroke:#868e96,color:#000000
+    classDef config fill:#e9fac8,stroke:#66a80f,color:#000000
 
     APPSEC(["AppSec team"]) -->|"owns & edits"| CL
+    APPSEC -->|"owns & edits"| SCOPE[".compliance.yml<br/>in-scope paths"]
     subgraph CL["control-library folder"]
         PATT["patterns.json<br/>deterministic patterns"]
         SKILLMD["SKILL.md<br/>judgment rulebook"]
@@ -106,6 +109,8 @@ flowchart TD
 
     DEV --> H1
     PATT -.->|"loaded by"| H1
+    SCOPE -.->|"read by"| H1
+    SCOPE -.->|"read by"| H2
     H1 -->|"out of scope"| SAVE
     H1 -->|"in scope"| VIOL
     VIOL -->|"no"| SAVE
@@ -125,6 +130,7 @@ flowchart TD
     class H1,H2,VIOL hook
     class AGENT,REVIEW agent
     class PATT,SKILLMD skill
+    class SCOPE config
     class CMD command
     class BLOCK,SAVE,SILENT,OUT,CLEAN,REPORT state
     style CL fill:#f1f3f5,stroke:#868e96,color:#000000
