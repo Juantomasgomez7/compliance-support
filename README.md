@@ -84,8 +84,10 @@ flowchart TD
 
     APPSEC(["AppSec team"]) -->|"owns & edits"| CL
     subgraph CL["AppSec-owned: control library + scope"]
-        PATT["patterns.json<br/>deterministic patterns"]
-        SCOPE[".compliance.yml (repo root)<br/>defines what is in scope"]
+        subgraph INNER[" "]
+            SCOPE[".compliance.yml (repo root)<br/>defines what is in scope"]
+            PATT["patterns.json<br/>deterministic patterns"]
+        end
         SKILLMD["SKILL.md<br/>judgment rulebook"]
     end
     CL ~~~ DEV([Developer edits code])
@@ -136,6 +138,7 @@ flowchart TD
     class CMD command
     class BLOCK,SAVE,SILENT,OUT,CLEAN,REPORT state
     style CL fill:#f1f3f5,stroke:#868e96,color:#000000
+    style INNER fill:transparent,stroke:transparent
     style G1 fill:#faf5ff,stroke:#7048e8,stroke-dasharray:6 4,color:#000000
     style G2 fill:#ebfbf5,stroke:#099268,stroke-dasharray:6 4,color:#000000
 ```
