@@ -116,9 +116,12 @@ flowchart TD
     SAVE -->|"turn ends"| H2
     H2 -->|"nothing in scope"| SILENT
     H2 -->|"in-scope change"| AGENT
-    RUN(["Manual command"]) --> CMD[/"/compliance-review<br/>command"/]
+    subgraph MANUAL[" "]
+        RUN(["Manual command"]) --> CMD[/"/compliance-review<br/>command"/]
+    end
     SAVE ~~~ RUN
     CMD --> AGENT
+    style MANUAL fill:transparent,stroke:transparent
     SKILLMD -.->|"read by"| AGENT
     AGENT --> REVIEW
     REVIEW -->|"no"| CLEAN
