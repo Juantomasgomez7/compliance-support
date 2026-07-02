@@ -41,10 +41,7 @@ I deliberately did not turn those numbers into a hard pass/fail threshold. The a
 
 The Stop-hook contract was the sharpest example. When I asked how the payload and the reinjection field worked, I got a confident, detailed answer that turned out to be invented: field names that do not exist, a control flow that was not real. Rather than build on it, I wrote a probe hook, ran it against the actual version I was on, and read what really came back. Everything above is built on what the probe showed, not on what the model recalled. That became the rule for the whole build: trust the run, not the recollection.
 
-Two smaller steers worth naming:
-
-- **I constrained the agent hard.** It checks exactly two controls and emits a fixed JSON shape. Left open, it drifted into re-reporting the secrets the hook already blocks, which is double noise, and it editorialized instead of citing a line. Pinning it to two controls and a schema is what makes the review precise and the report renderer deterministic: the agent fills in the specifics, and `render_report.py` supplies every fixed string, so the report reads the same on every run.
-- **The diagram had to survive a stranger's settings.** The first architecture diagram used colors that vanished on GitHub's dark theme. A grader on default dark mode would have opened the README to a blank box. It now uses light fills with black text and theme-independent styling, so it holds up in either mode.
+**I constrained the agent hard.** It checks exactly two controls and emits a fixed JSON shape. Left open, it drifted into re-reporting the secrets the hook already blocks, which is double noise, and it editorialized instead of citing a line. Pinning it to two controls and a schema is what makes the review precise and the report renderer deterministic: the agent fills in the specifics, and `render_report.py` supplies every fixed string, so the report reads the same on every run.
 
 ## What I would do with more time
 

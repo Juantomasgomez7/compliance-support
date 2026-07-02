@@ -12,7 +12,7 @@ This plugin is built for engineers like Marcus. If you don't touch code with car
 
 ## The problem this plugin addresses
 
-Every change to code that touches payment card surfaces has to satisfy PCI DSS, SOC 2, and GDPR regulations.
+Every change to code that touches payment card data has to satisfy PCI DSS, SOC 2, and GDPR regulations.
 
 However, the enforcement of these regulations is owned by the application security (AppSec) team. At a bank the size of Capital One there is roughly one AppSec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
 
@@ -117,6 +117,7 @@ flowchart TD
     H2 -->|"nothing in scope"| SILENT
     H2 -->|"in-scope change"| AGENT
     RUN(["Runs command<br/>on demand"]) --> CMD[/"/compliance-review<br/>command"/]
+    SAVE ~~~ RUN
     CMD --> AGENT
     SKILLMD -.->|"read by"| AGENT
     AGENT --> REVIEW
