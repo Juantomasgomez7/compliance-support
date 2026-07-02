@@ -6,7 +6,7 @@ Compliance Support is a Claude Code plugin built for Capital One backend enginee
 
 This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He constantly has to stay up to date with the changes that the bank's AppSec team enforces.
 
-Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to fully adopting it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
+Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to adopt it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
 
 This plugin is built for engineers like Marcus. If you don't touch code with cardholder data, this plugin is not for you: it stays silent on everything outside PCI scope.
 
@@ -85,7 +85,7 @@ flowchart TD
     APPSEC(["AppSec team"]) -->|"owns & edits"| CL
     subgraph CL["AppSec-owned: control library + scope"]
         PATT["patterns.json<br/>deterministic patterns"]
-        SCOPE[".compliance.yml (repo root)<br/>in-scope paths"]
+        SCOPE[".compliance.yml (repo root)<br/>defines what is in scope"]
         SKILLMD["SKILL.md<br/>judgment rulebook"]
     end
     CL ~~~ DEV([Developer edits code])
@@ -109,8 +109,6 @@ flowchart TD
 
     DEV --> H1
     PATT -.->|"loaded by"| H1
-    SCOPE -.->|"read by"| H1
-    SCOPE -.->|"read by"| H2
     H1 -->|"out of scope"| SAVE
     H1 -->|"in scope"| VIOL
     VIOL -->|"no"| SAVE
