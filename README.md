@@ -6,13 +6,13 @@ Compliance Support is a Claude Code plugin built for Capital One backend enginee
 
 This plugin is built with Marcus in mind. Marcus is a senior backend engineer on Capital One's Payments and Ledger squad. He owns the refunds service that issues and reverses card payments, so nearly every path he writes touches cardholder data. He ships three to five PRs a day and knows compliance rules exist but doesn't know their full detail. He constantly has to stay up to date with the changes that the bank's AppSec team enforces.
 
-Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to fully adopting it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
+Marcus has been leveraging Claude Code on a basic level, but one of his biggest barriers to adopt it is the fear of having Claude Code ship something that causes an audit finding. Even when he ships without Claude Code, he lives with the constant stress of being the engineer who causes an accidental compliance breach.
 
 This plugin is built for engineers like Marcus. If you don't touch code with cardholder data, this plugin is not for you: it stays silent on everything outside PCI scope.
 
 ## The problem this plugin addresses
 
-Every change to code that touches payment card surfaces has to satisfy PCI DSS, SOC 2, and GDPR regulations.
+Every change to code that touches payment card data has to satisfy PCI DSS, SOC 2, and GDPR regulations.
 
 However, the enforcement of these regulations is owned by the application security (AppSec) team. At a bank the size of Capital One there is roughly one AppSec engineer for every 150 developers. One person cannot read every pull request from 150 engineers, so the rules end up in long documents almost nobody opens, and realistically most code ships on trust.
 
@@ -67,7 +67,8 @@ flowchart LR
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
     classDef command fill:#dbe9ff,stroke:#1971c2,color:#000000
     classDef state fill:#f1f3f5,stroke:#868e96,color:#000000
-    k1["Human action"]:::human ~~~ k2["Hook"]:::hook ~~~ k3["Agent"]:::agent ~~~ k4["Skill"]:::skill ~~~ k5["Command"]:::command ~~~ k6["Result"]:::state
+    classDef config fill:#e9fac8,stroke:#66a80f,color:#000000
+    k1["Human action"]:::human ~~~ k2["Hook"]:::hook ~~~ k3["Agent"]:::agent ~~~ k4["Skill"]:::skill ~~~ k5["Command"]:::command ~~~ k6["Config file"]:::config ~~~ k7["Result"]:::state
 ```
 
 ```mermaid
@@ -79,10 +80,12 @@ flowchart TD
     classDef skill fill:#ffe0ef,stroke:#e64980,color:#000000
     classDef command fill:#dbe9ff,stroke:#1971c2,color:#000000
     classDef state fill:#f1f3f5,stroke:#868e96,color:#000000
+    classDef config fill:#e9fac8,stroke:#66a80f,color:#000000
 
     APPSEC(["AppSec team"]) -->|"owns & edits"| CL
-    subgraph CL["control-library folder"]
+    subgraph CL["AppSec-owned: control library + scope"]
         PATT["patterns.json<br/>deterministic patterns"]
+        SCOPE[".compliance.yml (repo root)<br/>defines what is in scope"]
         SKILLMD["SKILL.md<br/>judgment rulebook"]
     end
     CL ~~~ DEV([Developer edits code])
@@ -114,6 +117,7 @@ flowchart TD
     H2 -->|"nothing in scope"| SILENT
     H2 -->|"in-scope change"| AGENT
     RUN(["Runs command<br/>on demand"]) --> CMD[/"/compliance-review<br/>command"/]
+    SAVE ~~~ RUN
     CMD --> AGENT
     SKILLMD -.->|"read by"| AGENT
     AGENT --> REVIEW
@@ -125,6 +129,7 @@ flowchart TD
     class H1,H2,VIOL hook
     class AGENT,REVIEW agent
     class PATT,SKILLMD skill
+    class SCOPE config
     class CMD command
     class BLOCK,SAVE,SILENT,OUT,CLEAN,REPORT state
     style CL fill:#f1f3f5,stroke:#868e96,color:#000000
