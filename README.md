@@ -270,6 +270,16 @@ When you are done, reset the fixture from a terminal:
 bash scripts/demo_reset.sh
 ```
 
+## Try it as the engineer would (optional)
+
+The five steps above run inside the plugin's own repo, where the gate's internals sit in plain view. An engineer's real repo is just their service plus a `.compliance.yml`, with the plugin installed separately. One script reproduces that setup in a sibling folder:
+
+```bash
+bash scripts/demo_sandbox.sh
+```
+
+It prints the two commands to launch: `cd` into the sandbox, then `claude --plugin-dir` pointing back at this repo. Run the same steps there with paths relative to that repo (`src/...` instead of `examples/refunds-service/src/...`). Step 5's report renderer ships with the plugin repo, so run that step here. Re-run the script any time to reset the sandbox.
+
 ## Testing and evaluation
 
 Two kinds of check, tested two ways: golden block/allow tests for the deterministic hooks, and a precision/recall eval for the agent against a labeled fixture.
